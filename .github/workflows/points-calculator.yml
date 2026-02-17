@@ -1,5 +1,10 @@
 name: Points Calculator
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Fires on every PR merge across this repo.
+# Writes points to the CENTRAL leaderboard repo: gdg-charusat/sprintathon-leaderboard
+# PAT_TOKEN must be added as a secret in every participating repo.
+# ─────────────────────────────────────────────────────────────────────────────
 on:
   pull_request_target:
     types: [closed]
@@ -7,7 +12,7 @@ on:
 permissions:
   pull-requests: write
   issues: write
-  contents: write
+  contents: read
 
 jobs:
   calculate-points:
@@ -15,11 +20,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout base repo
+      # Check out the CENTRAL leaderboard repo (not this repo)
+      # so we can read and update leaderboard.json there.
+      - name: Checkout central leaderboard repo
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.ref }}
+          repository: gdg-charusat/sprintathon-leaderboard
+          ref: main
           token: ${{ secrets.PAT_TOKEN }}
+          path: leaderboard-repo
 
       - name: Calculate and Award Points
         uses: actions/github-script@v7
@@ -30,8 +39,8 @@ jobs:
             const pr       = context.payload.pull_request;
             const body     = pr.body || '';
             const prNumber = pr.number;
-            const prUrl    = pr.html_url;
             const author   = pr.user.login;
+            const sourceRepo = context.repo.repo;   // which of the 6 repos this came from
             const footer   = '\n\n> GDG CHARUSAT Open Source Contri Sprintathon';
 
             const postComment = async (text) => {
@@ -66,7 +75,7 @@ jobs:
               if (lower.includes('level-2') || lower.includes('intermediate'))
                 return { points: 20, level: 'Level 2 — Intermediate' };
               if (lower.includes('level-1') || lower.includes('beginner') || lower.includes('good-first-issue'))
-                return { points: 5, level: 'Level 1 — Beginner' };
+                return { points: 5,  level: 'Level 1 — Beginner' };
               return null;
             };
 
@@ -81,12 +90,11 @@ jobs:
               const issueNumber = parseInt(issueMatch[3]);
               pointSource = `Linked Issue #${issueNumber}`;
               try {
-                const issueData   = await github.rest.issues.get({
+                const issueData  = await github.rest.issues.get({
                   owner: context.repo.owner, repo: context.repo.repo,
                   issue_number: issueNumber
                 });
-                const issueLabels = issueData.data.labels.map(l => l.name);
-                const result      = levelFromLabels(issueLabels);
+                const result = levelFromLabels(issueData.data.labels.map(l => l.name));
                 if (result) {
                   points = result.points; level = result.level;
                 } else {
@@ -118,101 +126,100 @@ jobs:
               level  = prResult.level + ' (admin assigned)';
             }
 
-            // ── 3. Post award comment ────────────────────────────────────────
+            // ── 3. Post award comment on the PR ──────────────────────────────
             await postComment(
               `## 🎉 PR Merged — Points Awarded!\n\n` +
               `Congratulations @${author}! Your contribution has been merged.\n\n` +
               `| Field | Value |\n|---|---|\n` +
+              `| **Repo** | ${sourceRepo} |\n` +
               `| **Team** | ${teamLabel} |\n` +
               `| **Contributor** | @${author} |\n` +
               `| **Level** | ${level} |\n` +
               `| **Points Awarded** | ${points} pts |\n` +
               `| **Source** | ${pointSource} |\n\n` +
-              `The leaderboard has been updated. Keep contributing!` +
+              `The central leaderboard has been updated. Keep contributing!` +
               footer
             );
 
-            // ── 4. Load leaderboard.json ─────────────────────────────────────
-            // Structure:
-            // {
-            //   "teams": {
-            //     "Team 02": { points, prs, contributors: ["user1","user2"] }
-            //   },
-            //   "contributors": {
-            //     "user1": { points, prs, team: "Team 02" }
-            //   }
-            // }
-            const LB_PATH = 'leaderboard.json';
+            // ── 4. Load leaderboard.json from central repo ───────────────────
+            const LB_PATH = 'leaderboard-repo/leaderboard.json';
             let db = { teams: {}, contributors: {} };
 
             if (fs.existsSync(LB_PATH)) {
               try { db = JSON.parse(fs.readFileSync(LB_PATH, 'utf8')); } catch (_) {}
             }
-
-            // Ensure structure exists
             if (!db.teams)        db.teams        = {};
             if (!db.contributors) db.contributors = {};
 
-            // ── Update team record ───────────────────────────────────────────
+            // ── 5. Update team record ────────────────────────────────────────
             if (!db.teams[teamLabel]) {
-              db.teams[teamLabel] = { points: 0, prs: 0, contributors: [] };
+              db.teams[teamLabel] = { points: 0, prs: 0, contributors: [], repos: [] };
             }
             db.teams[teamLabel].points += points;
             db.teams[teamLabel].prs    += 1;
             if (!db.teams[teamLabel].contributors.includes(author)) {
               db.teams[teamLabel].contributors.push(author);
             }
+            if (!db.teams[teamLabel].repos) db.teams[teamLabel].repos = [];
+            if (!db.teams[teamLabel].repos.includes(sourceRepo)) {
+              db.teams[teamLabel].repos.push(sourceRepo);
+            }
 
-            // ── Update individual contributor record ─────────────────────────
+            // ── 6. Update contributor record ─────────────────────────────────
             if (!db.contributors[author]) {
-              db.contributors[author] = { points: 0, prs: 0, team: teamLabel };
+              db.contributors[author] = { points: 0, prs: 0, team: teamLabel, repos: [] };
             }
             db.contributors[author].points += points;
             db.contributors[author].prs    += 1;
-            // Update team in case someone switched (edge case)
-            db.contributors[author].team = teamLabel;
+            db.contributors[author].team    = teamLabel;
+            if (!db.contributors[author].repos) db.contributors[author].repos = [];
+            if (!db.contributors[author].repos.includes(sourceRepo)) {
+              db.contributors[author].repos.push(sourceRepo);
+            }
 
             fs.writeFileSync(LB_PATH, JSON.stringify(db, null, 2));
 
-            // ── 5. Render leaderboard.md with two tables ─────────────────────
+            // ── 7. Render leaderboard.md ─────────────────────────────────────
             const medals = ['🥇', '🥈', '🥉'];
             const now    = new Date().toUTCString();
 
-            // — Team rankings table —
+            // Team rankings
             const sortedTeams = Object.entries(db.teams)
               .sort((a, b) => b[1].points - a[1].points || b[1].prs - a[1].prs);
 
             const teamRows = sortedTeams.map(([team, data], i) => {
-              const rank         = i < 3 ? medals[i] : `${i + 1}.`;
-              const memberCount  = data.contributors.length;
-              const contributors = data.contributors.map(c => `@${c}`).join(', ');
-              return `| ${rank} | **${team}** | ${data.points} | ${data.prs} | ${memberCount} | ${contributors} |`;
+              const rank    = i < 3 ? medals[i] : `${i + 1}.`;
+              const repos   = (data.repos || []).join(', ');
+              const members = data.contributors.map(c => `@${c}`).join(', ');
+              return `| ${rank} | **${team}** | ${data.points} | ${data.prs} | ${data.contributors.length} | ${repos} | ${members} |`;
             }).join('\n');
 
-            // — Individual contributor table —
+            // Individual contributors
             const sortedContribs = Object.entries(db.contributors)
               .sort((a, b) => b[1].points - a[1].points || b[1].prs - a[1].prs);
 
             const contribRows = sortedContribs.map(([user, data], i) => {
-              const rank = i < 3 ? medals[i] : `${i + 1}.`;
-              return `| ${rank} | @${user} | ${data.team} | ${data.points} | ${data.prs} |`;
+              const rank  = i < 3 ? medals[i] : `${i + 1}.`;
+              const repos = (data.repos || []).join(', ');
+              return `| ${rank} | @${user} | ${data.team} | ${data.points} | ${data.prs} | ${repos} |`;
             }).join('\n');
 
             const mdBody =
               `# 🏆 GDG CHARUSAT Open Source Contri Sprintathon — Leaderboard\n\n` +
-              `> **Last Updated:** ${now}\n\n` +
+              `> **Last Updated:** ${now}\n` +
+              `> **Tracking:** Zaplink_frontend · Zaplink_backend · CareXpert_frontend · CareXpert_backend · Code_duel_frontend · Code_duel_backend\n\n` +
               `---\n\n` +
 
               `## 👥 Team Rankings\n\n` +
-              `| Rank | Team | Total Points | PRs Merged | Members | Contributors |\n` +
-              `|------|------|:------------:|:----------:|:-------:|--------------|\n` +
-              (teamRows || `| — | No teams yet | 0 | 0 | 0 | — |`) +
+              `| Rank | Team | Total Points | PRs Merged | Members | Active Repos | Contributors |\n` +
+              `|------|------|:------------:|:----------:|:-------:|--------------|---------------|\n` +
+              (teamRows || `| — | No teams yet | 0 | 0 | 0 | — | — |`) +
               `\n\n---\n\n` +
 
               `## 🧑‍💻 Individual Contributors\n\n` +
-              `| Rank | GitHub | Team | Points | PRs Merged |\n` +
-              `|------|--------|------|:------:|:----------:|\n` +
-              (contribRows || `| — | No contributors yet | — | 0 | 0 |`) +
+              `| Rank | GitHub | Team | Points | PRs Merged | Repos |\n` +
+              `|------|--------|------|:------:|:----------:|-------|\n` +
+              (contribRows || `| — | No contributors yet | — | 0 | 0 | — |`) +
               `\n\n---\n\n` +
 
               `## Points System\n\n` +
@@ -222,15 +229,17 @@ jobs:
               `| Intermediate | \`level-2\` / \`intermediate\` | 20 pts |\n` +
               `| General Improvement | Admin assigns level on PR | 5 or 20 pts |\n\n` +
               `---\n\n` +
-              `*Auto-updated on every merged PR · Maintained by GDG CHARUSAT*\n`;
+              `*Auto-updated on every merged PR across all 6 repos · Maintained by GDG CHARUSAT*\n`;
 
-            fs.writeFileSync('leaderboard.md', mdBody);
-            core.info(`✅ Leaderboard updated — ${teamLabel} / @${author}: +${points} pts`);
+            fs.writeFileSync('leaderboard-repo/leaderboard.md', mdBody);
+            core.info(`✅ Central leaderboard updated — ${sourceRepo} / ${teamLabel} / @${author}: +${points} pts`);
 
+      # ── Commit back to the central leaderboard repo ──────────────────────
       - name: Commit leaderboard update
         run: |
+          cd leaderboard-repo
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add leaderboard.json leaderboard.md
-          git diff --staged --quiet || git commit -m "chore: update leaderboard [skip ci]"
+          git diff --staged --quiet || git commit -m "chore: update leaderboard — ${{ github.repository }} PR #${{ github.event.pull_request.number }} [skip ci]"
           git push
