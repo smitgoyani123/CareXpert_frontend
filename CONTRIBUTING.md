@@ -2,6 +2,7 @@
 
 Thank you for your interest in contributing to **CareXpert** as part of the **GDG CHARUSAT Open Source Contri Sprintathon**! 🎉
 
+
 ---
 
 ## 🚨 Contribution Rules (Strict Enforcement)
@@ -9,10 +10,10 @@ Thank you for your interest in contributing to **CareXpert** as part of the **GD
 > **Read this section carefully before doing anything. Violations will result in your PR being closed without review.**
 
 - ❌ **Do NOT open PRs for issues unless you are officially assigned**
-- ❌ **Do NOT create new issues** - issues are created and managed only by organizers
 - ❌ **PRs without a linked issue (or team number) will be closed immediately**
 - ❌ **PRs for unassigned issues will be closed without merging**
 - ❌ **Do NOT self-assign issues**
+- ✅ **Contributors may create new issues for bugs, enhancements, or documentation improvements**, following the Issue Guidelines below
 - ✅ **One issue per contributor at a time** - finish and submit before picking another
 - ✅ **Only maintainers can assign, review, and merge PRs** - do not ask others to merge your PR
 - ✅ **Every PR must include your Team Number** in the description
@@ -22,7 +23,13 @@ Thank you for your interest in contributing to **CareXpert** as part of the **GD
 
 ## 📌 Issue Policy
 
-- Issues are **created and managed only by organizers** - do not open your own issues
+- Contributors may create new issues for:
+  - Bugs
+  - UI/UX inconsistencies
+  - Documentation improvements
+  - Feature suggestions
+- Before creating a new issue, check that a similar issue does not already exist
+- Use clear, descriptive titles and provide proper details
 - To work on an issue, **comment on it requesting assignment** (e.g., *"I'd like to work on this, Team XX"*)
 - **Wait for a maintainer to officially assign you** before writing any code
 - Once assigned, you must submit your PR within **3-5 days** or the issue will be reassigned
@@ -32,8 +39,6 @@ Thank you for your interest in contributing to **CareXpert** as part of the **GD
 
 ## 🚀 Reporting Bugs or Proposing Improvements
 
-As part of this competition, **participants are not permitted to create new issues** in the repository.
-
 If you identify:
 
 - A functional bug  
@@ -42,24 +47,17 @@ If you identify:
 - A minor or major enhancement  
 - A refactor that improves code quality or maintainability  
 
-You must **submit a Pull Request directly**.
+You must **create a new issue and wait for it to be approved**.
 
 ---
 
 ### 📌 Important Guidelines
 
-- ❌ Do **not** open a new issue for such findings.  
+- ✅ Open a new issue describing the problem clearly and wait for maintainer acknowledgment before submitting a Pull Request.
 - ✅ Submit a Pull Request with a clear and structured description.  
 - ✅ Include your **Team Number** in the PR description.  
 - ✅ Clearly explain the problem and the rationale behind your proposed change.  
-- ✅ Attach screenshots if the change affects UI.  
-
-These submissions will be treated as **General Improvement Pull Requests** and will undergo **strict review** to ensure:
-
-- Relevance to project scope  
-- Code quality and maintainability  
-- No unintended side effects  
-- Compliance with project standards  
+- ✅ Attach screenshots if the change affects UI. 
 
 Maintainers reserve the right to close any PR that is:
 
@@ -76,13 +74,10 @@ Please ensure that your contribution is meaningful, well-tested, and professiona
 
 Some issues may require environment variables (API keys, secrets, credentials, etc.).
 
-🚨 **Do NOT ask for environment variables in issues or pull requests.**
-🚨 **Do NOT commit `.env` files or any secrets to the repository.**
-🚨 **Do NOT hardcode credentials anywhere in your code.**
+🚨 **Do NOT ask for environment variables in issues or pull requests.**  
+🚨 **Do NOT commit secrets to the repository.**
 
-> ⚠️ **CareXpert is a healthcare platform. Any mishandling of credentials or patient-related data is a serious violation and will result in immediate disqualification from the event.**
-
-If you need environment variables to work on an assigned issue, contact the organizers privately:
+If you need environment variables to work on an assigned issue, please contact the organizers privately:
 
 - 📱 **WhatsApp:** +91-8347036131
 - 📧 **Email:** jadejakrishnapal04@gmail.com
