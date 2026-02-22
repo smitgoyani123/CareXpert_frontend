@@ -69,6 +69,9 @@ export default function BookAppointmentPage() {
     notes: "",
   });
 
+  // ── Validation errors state ──
+  const [errors, setErrors] = useState<{ date?: string; time?: string }>({});
+
   const url = `${import.meta.env.VITE_BASE_URL}/api/patient`;
 
   useEffect(() => {
@@ -119,11 +122,22 @@ export default function BookAppointmentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.date || !formData.time) {
-      toast.error("Please select both date and time");
-      return;
+
+    const newErrors: { date?: string; time?: string } = {};
+    const today = new Date().toISOString().split("T")[0];
+
+    if (!formData.date) {
+      newErrors.date = "Please select an appointment date.";
+    } else if (formData.date < today) {
+      newErrors.date = "Appointment date cannot be in the past.";
     }
+
+    if (!formData.time) {
+      newErrors.time = "Please select an appointment time.";
+    }
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
 
     setBooking(true);
     
@@ -288,17 +302,18 @@ export default function BookAppointmentPage() {
                           id="date"
                           type="date"
                           value={formData.date}
-                          onChange={(e) => handleInputChange("date", e.target.value)}
+                          onChange={(e) => { handleInputChange("date", e.target.value); setErrors((prev) => ({ ...prev, date: undefined })); }}
                           min={new Date().toISOString().split('T')[0]}
                           required
                         />
+                        {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
                       </div>
 
                       <div className="space-y-2">
                         <Label htmlFor="time">Time</Label>
                         <Select
                           value={formData.time}
-                          onValueChange={(value) => handleInputChange("time", value)}
+                          onValueChange={(value) => { handleInputChange("time", value); setErrors((prev) => ({ ...prev, time: undefined })); }}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select time" />
@@ -311,6 +326,7 @@ export default function BookAppointmentPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.time && <p className="text-xs text-red-500 mt-1">{errors.time}</p>}
                       </div>
                     </div>
 
