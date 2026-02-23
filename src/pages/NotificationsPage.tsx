@@ -5,6 +5,7 @@ import { Button } from "../components/ui/button";
 import { Bell, Check, CheckCheck, Calendar, User, Stethoscope } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
+import { relativeTime } from "@/lib/utils";
 
 interface Notification {
   id: string;
@@ -194,15 +195,7 @@ export default function NotificationsPage() {
                       </p>
                       
                       <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                        <span>
-                          {new Date(notification.createdAt).toLocaleDateString()}
-                        </span>
-                        <span>
-                          {new Date(notification.createdAt).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
+                        <span>{relativeTime(notification.createdAt)}</span>
                       </div>
                     </div>
                   </div>
