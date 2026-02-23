@@ -6,10 +6,10 @@ import {
   CardTitle,
   CardDescription,
 } from "../../components/ui/card";
-import { Mail, Lock, Eye, EyeOff, Heart, User } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Heart, User, Loader2 } from "lucide-react";
 import { InputWithIcon } from "../../components/ui/input-with-icon";
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import * as React from "react";
 import { toast } from "sonner";
 import axios from "axios";
@@ -80,6 +80,7 @@ export default function PatientSignup() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
 
     const newErrors: typeof errors = {};
     const rules = getPasswordRules(password);
@@ -103,7 +104,6 @@ export default function PatientSignup() {
     setShowRules(true);
 
     if (Object.keys(newErrors).length > 0) return;
-
     try {
       const res = await axios.post(
         `${import.meta.env.VITE_BASE_URL}/api/user/signup`,

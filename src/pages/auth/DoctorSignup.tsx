@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { InputWithIcon } from "../../components/ui/input-with-icon";
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import * as React from "react";
 import axios from "axios";
 import { toast } from "sonner";
@@ -94,6 +94,20 @@ export default function DoctorSignup() {
     if (!password) setErrors((p) => ({ ...p, password: "Password is required." }));
     else if (!getPasswordRules(password).every((r) => r.pass)) setErrors((p) => ({ ...p, password: "Password does not meet all requirements below." }));
     else setErrors((p) => ({ ...p, password: undefined }));
+  };
+
+  const validateForm = (): boolean => {
+    const errors: FieldErrors = {};
+    if (!firstName.trim()) errors.firstName = "First name is required";
+    if (!lastName.trim()) errors.lastName = "Last name is required";
+    if (!email.trim()) errors.email = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Invalid email format";
+    if (!specialty) errors.specialty = "Specialty is required";
+    if (!location.trim()) errors.location = "Location is required";
+    if (!password) errors.password = "Password is required";
+    else if (password.length < 8) errors.password = "Password must be at least 8 characters";
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSignup = async (e: React.FormEvent) => {

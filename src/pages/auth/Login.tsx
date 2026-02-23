@@ -6,7 +6,7 @@ import {
   CardTitle,
   CardDescription,
 } from "../../components/ui/card";
-import { Mail, Lock, Eye, EyeOff, Heart } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Heart, Loader2 } from "lucide-react";
 import { InputWithIcon } from "../../components/ui/input-with-icon";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -59,6 +59,7 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
 
     const newErrors: { email?: string; password?: string } = {};
     const rules = getPasswordRules(password);
@@ -105,6 +106,8 @@ export default function Login() {
       } else {
         toast.error("Unknown error occurred.");
       }
+    } finally {
+      setIsLoading(false);
     }
   };
 
