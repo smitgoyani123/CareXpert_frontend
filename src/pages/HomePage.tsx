@@ -8,7 +8,7 @@ import {
 } from "../components/ui/card";
 import { Heart, Users, Clock, Shield, Star } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Navbar } from "../components/Navbar";
+import { Navbar } from "../components/navbar";
 import { Footer } from "../components/footer";
 import { AIChatBox } from "../components/ai-chat-box";
 import { SampleCredentials } from "../components/sample-credentials";

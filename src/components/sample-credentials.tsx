@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { Button } from "./ui/button";
-import { Info, X } from "lucide-react";
 
 export function SampleCredentials() {
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, _setIsVisible] = useState(true);
 
   if (!isVisible) return null;
 

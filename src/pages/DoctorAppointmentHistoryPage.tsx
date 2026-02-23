@@ -1,11 +1,7 @@
 import { useState, useEffect } from "react";
-import { Button } from "../components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
@@ -13,9 +9,7 @@ import {
   Calendar,
   Clock,
   FileText,
-  User,
   Mail,
-  Filter,
   Search,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authstore";
