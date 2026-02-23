@@ -87,9 +87,7 @@ export default function AppRoutes() {
         <Route path="/pharmacy" element={<DashboardLayout />}>
           <Route index element={<PharmacyPage />} />
         </Route>
-        <Route path="/notifications" element={<DashboardLayout />}>
-          <Route index element={<NotificationsPage />} />
-        </Route>
+
         <Route path="/admin" element={<DashboardLayout />}>
           <Route index element={<AdminPage />} />
         </Route>

@@ -13,6 +13,26 @@ import axios from "axios";
 import { toast } from "sonner";
 import { Badge } from "../components/ui/badge";
 
+interface AbnormalValue {
+  name: string;
+  value: string | number;
+  unit: string;
+  normal: string;
+  issue: string;
+}
+
+interface ReportAnalysisResult {
+  id?: string;
+  filename?: string;
+  status?: "IDLE" | "PROCESSING" | "COMPLETED" | "FAILED";
+  summary?: string;
+  abnormalValues?: AbnormalValue[];
+  possibleConditions?: (string | { condition: string })[];
+  recommendation?: string;
+  disclaimer?: string;
+  error?: string;
+}
+
 export default function UploadReportPage() {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -101,7 +121,7 @@ export default function UploadReportPage() {
     }, 2000);
   };
 
-  const handleSubmit = async () => {
+const handleSubmit = async () => {
     if (!file) return;
     setErrorMessage(null);
     setResult(null);
@@ -119,7 +139,6 @@ export default function UploadReportPage() {
 
       if (res.data?.success && res.data?.data?.reportId) {
         const id = res.data.data.reportId as string;
-        setReportId(id);
         startPolling(id);
         toast.message("Report uploaded", {
           description: "Analyzing in background...",
@@ -127,11 +146,13 @@ export default function UploadReportPage() {
       } else {
         throw new Error(res.data?.message || "Upload failed");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setIsUploading(false);
       setStatus("FAILED");
       const msg =
-        err?.response?.data?.message || err?.message || "Upload failed";
+        axios.isAxiosError(err)
+          ? err.response?.data?.message || err.message
+          : err instanceof Error ? err.message : "Upload failed";
       setErrorMessage(msg);
       toast.error(msg);
     }
