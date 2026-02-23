@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { useEffect, useState } from "react";
+import { useTheme } from "@/context/theme-context";
 
 export function Navbar() {
   const user = useAuthStore((state) => state.user);
@@ -18,27 +18,8 @@ export function Navbar() {
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
 
-  // Theme toggle logic
-  const [theme, setTheme] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("theme") || "light";
-    }
-    return "light";
-  });
-
-  useEffect(() => {
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
-  };
+  // Use shared theme context — single source of truth
+  const { theme, toggleTheme } = useTheme();
 
   const handleLogout = async () => {
     logout();

@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/store/authstore";
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 
 interface SidebarProps {
@@ -27,8 +27,9 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const user = useAuthStore((state) => state.user);
   const [unreadCount, setUnreadCount] = useState(0);
+  const intervalRef = useRef<number | null>(null);
 
-  // Fetch unread notification count
+  // Fetch unread notification count with optimized polling
   useEffect(() => {
     if (user) {
       const fetchUnreadCount = async () => {
@@ -45,10 +46,18 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
         }
       };
 
+      // Initial fetch
       fetchUnreadCount();
-      // Poll for updates every 30 seconds
-      const interval = setInterval(fetchUnreadCount, 30000);
-      return () => clearInterval(interval);
+
+      // Poll every 10 seconds for real-time updates
+      intervalRef.current = setInterval(fetchUnreadCount, 10000);
+
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      };
     }
   }, [user]);
 
