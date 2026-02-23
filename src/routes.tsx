@@ -24,6 +24,7 @@ import DoctorDashboard from "./pages/DoctorDashboard";
 import StartCall from "./pages/StartCall";
 import UploadReportPage from "./pages/UploadReportPage";
 import AppointmentHistoryPage from "./pages/AppointmentHistoryPage";
+import AppointmentStatusPage from "./pages/AppointmentStatusPage";
 import PharmacyPage from "./pages/PharmacyPage";
 import NotFound from "./pages/NotFound";
 
@@ -83,6 +84,9 @@ export default function AppRoutes() {
         </Route>
         <Route path="/appointment-history" element={<DashboardLayout />}>
           <Route index element={<AppointmentHistoryPage />} />
+        </Route>
+        <Route path="/appointment-status" element={<DashboardLayout />}>
+          <Route index element={<AppointmentStatusPage />} />
         </Route>
         <Route path="/pharmacy" element={<DashboardLayout />}>
           <Route index element={<PharmacyPage />} />
