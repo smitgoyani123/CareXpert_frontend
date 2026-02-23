@@ -227,7 +227,8 @@ export default function ChatPage() {
       (messages.length > 0 || aiMessages.length > 0) &&
       messagesEndRef.current
     ) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      //fix3
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, aiMessages, isInitialLoad]); // Added isInitialLoad to dependencies
 
@@ -357,17 +358,18 @@ export default function ChatPage() {
 
       // Clear the input immediately
       setMessage("");
-
+//fix5
       const response = await axios.post(
-        `${url}/ai-chat/process`,
-        {
-          symptoms: userMessage,
-          language: selectedLanguage,
-        },
-        {
-          withCredentials: true,
-        }
-      );
+  `${url}/ai-chat/process`,
+  {
+    symptoms: userMessage,
+    language: selectedLanguage,
+  },
+  {
+    withCredentials: true,
+    timeout: 15000
+  }
+);
 
       if (response.data.success) {
         const aiData = response.data.data;
@@ -1174,18 +1176,23 @@ export default function ChatPage() {
                         </div>
                       </div>
                     ))}
-                    {isAiLoading && (
-                      <div className="flex justify-start mb-4">
-                        <div className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white p-3 rounded-lg max-w-[80%]">
-                          <div className="flex items-center gap-2">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
-                            <span className="text-sm">
-                              AI is analyzing your symptoms...
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    {/*fix4*/ }
+                  {isAiLoading && (
+  <div className="flex justify-start mb-4">
+    <div className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white p-3 rounded-lg max-w-[80%]">
+      <div className="flex items-center gap-2">
+        <div className="flex space-x-1">
+          <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"></div>
+          <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce delay-100"></div>
+          <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce delay-200"></div>
+        </div>
+        <span className="text-sm">
+          AI is analyzing...
+        </span>
+      </div>
+    </div>
+  </div>
+)}
                   </>
                 )}
                 {/* doctor and community chats */}
@@ -1340,20 +1347,31 @@ export default function ChatPage() {
             {/* Message Input */}
             <div className="border-t p-4">
               <div className="flex gap-2">
+                
+                {/* fix2 */}
                 <Input
-                  placeholder="Type your message..."
-                  value={message}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setMessage(e.target.value)
-                  }
-                  onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) =>
-                    e.key === "Enter" && handleSendMessage()
-                  }
-                  className="flex-1"
-                />
-                <Button onClick={handleSendMessage} className="px-6">
-                  <Send className="h-4 w-4" />
-                </Button>
+  placeholder="Type your message..."
+  value={message}
+  disabled={selectedChat === "ai" && isAiLoading}
+  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+    setMessage(e.target.value)
+  }
+  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !isAiLoading) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  }}
+  className="flex-1"
+/>
+                {/* fix1 */}
+               <Button
+  onClick={handleSendMessage}
+  className="px-6"
+  disabled={!message.trim() || (selectedChat === "ai" && isAiLoading)}
+>
+  <Send className="h-4 w-4" />
+</Button>
               </div>
             </div>
           </Card>
