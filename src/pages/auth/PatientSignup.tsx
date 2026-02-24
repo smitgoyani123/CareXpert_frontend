@@ -1,3 +1,14 @@
+/**
+ * PatientSignup.tsx - Refactored to use react-hook-form with Zod validation
+ * 
+ * Changes made:
+ * 1. Replaced multiple useState hooks with useForm hook from react-hook-form
+ * 2. Added Zod schema (patientSignupSchema) for type-safe validation
+ * 3. Removed manual onChange handlers - now using register()
+ * 4. Added inline error messages for each field
+ * 5. Password confirmation validation done via Zod refine
+ * 6. Used zodResolver to connect Zod schema with react-hook-form
+ */
 import { Button } from "../../components/ui/button";
 import {
   Card,
@@ -10,107 +21,76 @@ import { Mail, Lock, Eye, EyeOff, Heart, User } from "lucide-react";
 import { InputWithIcon } from "../../components/ui/input-with-icon";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import * as React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
 import axios from "axios";
 import { useAuthStore } from "@/store/authstore";
 
-const getPasswordRules = (pwd: string) => [
-  { label: "At least 8 characters",                     pass: pwd.length >= 8 },
-  { label: "At least one uppercase letter (A-Z)",       pass: /[A-Z]/.test(pwd) },
-  { label: "At least one lowercase letter (a-z)",       pass: /[a-z]/.test(pwd) },
-  { label: "At least one number (0-9)",                 pass: /[0-9]/.test(pwd) },
-  { label: "At least one special character (!@#$%^&*)", pass: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd) },
-];
+/**
+ * Zod Schema for Patient Signup Form
+ * Includes password confirmation validation via refine
+ */
+const patientSignupSchema = z.object({
+  firstName: z.string().min(1, "First name is required").min(2, "First name must be at least 2 characters"),
+  lastName: z.string().min(1, "Last name is required").min(2, "Last name must be at least 2 characters"),
+  email: z.string().min(1, "Email is required").email("Invalid email address"),
+  password: z.string().min(1, "Password is required").min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
 
-const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,6}$/;
-const nameRegex = /^[a-zA-Z\s'-]+$/;
+// Type inference from Zod schema
+type PatientSignupFormData = z.infer<typeof patientSignupSchema>;
 
 export default function PatientSignup() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [errors, setErrors] = useState<{
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-    password?: string;
-    confirmPassword?: string;
-  }>({});
-  const [showRules, setShowRules] = useState(false);
   const navigate = useNavigate();
 
-  const passwordRules = getPasswordRules(password);
+  /**
+   * Patient Signup Form - using react-hook-form with Zod resolver
+   */
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<PatientSignupFormData>({
+    resolver: zodResolver(patientSignupSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
 
-  // ── onBlur handlers: show error as soon as user leaves the field ──
-  const handleFirstNameBlur = () => {
-    if (!firstName.trim()) setErrors((p) => ({ ...p, firstName: "First name is required." }));
-    else if (!nameRegex.test(firstName)) setErrors((p) => ({ ...p, firstName: "First name must contain only letters." }));
-    else setErrors((p) => ({ ...p, firstName: undefined }));
-  };
-
-  const handleLastNameBlur = () => {
-    if (!lastName.trim()) setErrors((p) => ({ ...p, lastName: "Last name is required." }));
-    else if (!nameRegex.test(lastName)) setErrors((p) => ({ ...p, lastName: "Last name must contain only letters." }));
-    else setErrors((p) => ({ ...p, lastName: undefined }));
-  };
-
-  const handleEmailBlur = () => {
-    if (!email.trim()) setErrors((p) => ({ ...p, email: "Email is required." }));
-    else if (!emailRegex.test(email.trim())) setErrors((p) => ({ ...p, email: "Enter a valid email (e.g. name@example.com)." }));
-    else setErrors((p) => ({ ...p, email: undefined }));
-  };
-
-  const handlePasswordBlur = () => {
-    setShowRules(true);
-    if (!password) setErrors((p) => ({ ...p, password: "Password is required." }));
-    else if (!getPasswordRules(password).every((r) => r.pass)) setErrors((p) => ({ ...p, password: "Password does not meet all requirements below." }));
-    else setErrors((p) => ({ ...p, password: undefined }));
-  };
-
-  const handleConfirmPasswordBlur = () => {
-    if (!confirmPassword) setErrors((p) => ({ ...p, confirmPassword: "Please confirm your password." }));
-    else if (password !== confirmPassword) setErrors((p) => ({ ...p, confirmPassword: "Passwords do not match." }));
-    else setErrors((p) => ({ ...p, confirmPassword: undefined }));
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const newErrors: typeof errors = {};
-    const rules = getPasswordRules(password);
-
-    if (!firstName.trim()) newErrors.firstName = "First name is required.";
-    else if (!nameRegex.test(firstName)) newErrors.firstName = "First name must contain only letters.";
-
-    if (!lastName.trim()) newErrors.lastName = "Last name is required.";
-    else if (!nameRegex.test(lastName)) newErrors.lastName = "Last name must contain only letters.";
-
-    if (!email.trim()) newErrors.email = "Email is required.";
-    else if (!emailRegex.test(email.trim())) newErrors.email = "Enter a valid email (e.g. name@example.com).";
-
-    if (!password) newErrors.password = "Password is required.";
-    else if (!rules.every((r) => r.pass)) newErrors.password = "Password does not meet all requirements below.";
-
-    if (!confirmPassword) newErrors.confirmPassword = "Please confirm your password.";
-    else if (password !== confirmPassword) newErrors.confirmPassword = "Passwords do not match.";
-
-    setErrors(newErrors);
-    setShowRules(true);
-
-    if (Object.keys(newErrors).length > 0) return;
+  /**
+   * Handle form submission - simplified with react-hook-form
+   * Validation is handled automatically by zodResolver
+   */
+  const onSubmit = async (data: PatientSignupFormData) => {
     try {
       const res = await axios.post(
         `${import.meta.env.VITE_BASE_URL}/api/user/signup`,
-        { firstName, lastName, email, password },
-        { withCredentials: true }
+        {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          password: data.password,
+        },
+        {
+          withCredentials: true,
+        }
       );
+
       if (res.data.success) {
         toast.success("Account created successfully!");
+
         useAuthStore.getState().setUser({
           id: res.data.data.id,
           name: res.data.data.name,
@@ -119,14 +99,21 @@ export default function PatientSignup() {
           role: res.data.data.role,
           refreshToken: res.data.data.refreshToken,
         });
-        if (res.data.data.role === "PATIENT") navigate("/dashboard/patient");
-        else navigate("/dashboard/doctor");
+
+        if (res.data.data.role === "PATIENT") {
+          navigate("/dashboard/patient");
+        } else {
+          navigate("/dashboard/doctor");
+        }
       } else {
         toast.error(res.data.message || "Signup failed");
       }
-    } catch (err: any) {
-      if (axios.isAxiosError(err) && err.response) toast.error(err.response.data?.message || "Something went wrong");
-      else toast.error("Unknown error occurred");
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response) {
+        toast.error(err.response.data?.message || "Something went wrong");
+      } else {
+        toast.error("Unknown error occurred");
+      }
     }
   };
 
@@ -143,92 +130,117 @@ export default function PatientSignup() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-6" onSubmit={handleSignup}>
+          {/* Form using react-hook-form's handleSubmit */}
+          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label htmlFor="firstName" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">First Name</label>
+                <label htmlFor="firstName" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  First Name
+                </label>
                 <InputWithIcon
-                  id="firstName" type="text" placeholder="John" value={firstName}
-                  onChange={(e) => { setFirstName(e.target.value); setErrors((p) => ({ ...p, firstName: undefined })); }}
-                  onBlur={handleFirstNameBlur}
+                  id="firstName"
+                  type="text"
+                  placeholder="John"
+                  {...register("firstName")}
                   icon={<User className="h-4 w-4 text-gray-400" />}
-                  className={errors.firstName ? "border-red-500 focus-visible:ring-red-500" : ""}
                 />
-                {errors.firstName && <p className="text-xs text-red-500 mt-1">&#x2717; {errors.firstName}</p>}
+                {/* Display validation error from Zod schema */}
+                {errors.firstName && (
+                  <p className="text-sm text-red-500">{errors.firstName.message}</p>
+                )}
               </div>
               <div className="space-y-2">
-                <label htmlFor="lastName" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Last Name</label>
+                <label htmlFor="lastName" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Last Name
+                </label>
                 <InputWithIcon
-                  id="lastName" type="text" placeholder="Doe" value={lastName}
-                  onChange={(e) => { setLastName(e.target.value); setErrors((p) => ({ ...p, lastName: undefined })); }}
-                  onBlur={handleLastNameBlur}
+                  id="lastName"
+                  type="text"
+                  placeholder="Doe"
+                  {...register("lastName")}
                   icon={<User className="h-4 w-4 text-gray-400" />}
-                  className={errors.lastName ? "border-red-500 focus-visible:ring-red-500" : ""}
                 />
-                {errors.lastName && <p className="text-xs text-red-500 mt-1">&#x2717; {errors.lastName}</p>}
+                {errors.lastName && (
+                  <p className="text-sm text-red-500">{errors.lastName.message}</p>
+                )}
               </div>
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Email Address</label>
+              <label htmlFor="email" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Email Address
+              </label>
               <InputWithIcon
-                id="email" type="email" placeholder="john.doe@example.com" value={email}
-                onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: undefined })); }}
-                onBlur={handleEmailBlur}
+                id="email"
+                type="email"
+                placeholder="john.doe@example.com"
+                {...register("email")}
                 icon={<Mail className="h-4 w-4 text-gray-400" />}
-                className={errors.email ? "border-red-500 focus-visible:ring-red-500" : ""}
               />
-              {errors.email && <p className="text-xs text-red-500 mt-1">&#x2717; {errors.email}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Password</label>
-              <div className="relative">
-                <InputWithIcon
-                  id="password" type={showPassword ? "text" : "password"} placeholder="Create a strong password" value={password}
-                  onChange={(e) => { setPassword(e.target.value); setShowRules(true); setErrors((p) => ({ ...p, password: undefined })); }}
-                  onBlur={handlePasswordBlur}
-                  icon={<Lock className="h-4 w-4 text-gray-400" />}
-                  className={errors.password ? "border-red-500 focus-visible:ring-red-500" : ""}
-                />
-                <button type="button" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" onClick={() => setShowPassword(!showPassword)}>
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              {errors.password && <p className="text-xs text-red-500 mt-1">&#x2717; {errors.password}</p>}
-              {showRules && (
-                <ul className="mt-2 space-y-1 bg-gray-50 dark:bg-gray-800 rounded-md p-2">
-                  {passwordRules.map((rule) => (
-                    <li key={rule.label} className={`text-xs flex items-center gap-1 ${rule.pass ? "text-green-600" : "text-red-500"}`}>
-                      <span className="font-bold">{rule.pass ? "✓" : "✗"}</span>{rule.label}
-                    </li>
-                  ))}
-                </ul>
+              {errors.email && (
+                <p className="text-sm text-red-500">{errors.email.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Confirm Password</label>
+              <label htmlFor="password" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Password
+              </label>
               <div className="relative">
                 <InputWithIcon
-                  id="confirmPassword" type={showConfirmPassword ? "text" : "password"} placeholder="Confirm your password" value={confirmPassword}
-                  onChange={(e) => { setConfirmPassword(e.target.value); setErrors((p) => ({ ...p, confirmPassword: undefined })); }}
-                  onBlur={handleConfirmPasswordBlur}
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Create a strong password"
+                  {...register("password")}
                   icon={<Lock className="h-4 w-4 text-gray-400" />}
-                  className={errors.confirmPassword ? "border-red-500 focus-visible:ring-red-500" : ""}
                 />
-                <button type="button" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="text-sm text-red-500">{errors.password.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="confirmPassword" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <InputWithIcon
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Confirm your password"
+                  {...register("confirmPassword")}
+                  icon={<Lock className="h-4 w-4 text-gray-400" />}
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {errors.confirmPassword && <p className="text-xs text-red-500 mt-1">&#x2717; {errors.confirmPassword}</p>}
+              {errors.confirmPassword && (
+                <p className="text-sm text-red-500">{errors.confirmPassword.message}</p>
+              )}
             </div>
 
-            <Button type="submit" className="w-full">Create Account</Button>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Creating Account..." : "Create Account"}
+            </Button>
           </form>
           <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-300">
             Already have an account?{" "}
-            <Link to="/auth/login" className="font-medium text-blue-600 hover:underline dark:text-blue-400">Sign in</Link>
+            <Link to="/auth/login" className="font-medium text-blue-600 hover:underline dark:text-blue-400">
+              Sign in
+            </Link>
           </div>
         </CardContent>
       </Card>

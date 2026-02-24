@@ -1,4 +1,18 @@
-import { useState } from "react";
+/**
+ * ProfilePage.tsx - Refactored to use react-hook-form with Zod validation
+ * 
+ * Changes made:
+ * 1. Replaced useState for formData with useForm hook from react-hook-form
+ * 2. Added Zod schema (profileSchema) for type-safe validation
+ * 3. Removed manual handleInputChange - now using register()
+ * 4. Added inline error messages for each field
+ * 5. Centralized validation in Zod schema
+ * 6. Used zodResolver to connect Zod schema with react-hook-form
+ */
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -16,87 +30,127 @@ import { motion } from "framer-motion";
 import axios from "axios";
 import { toast } from "sonner";
 
+/**
+ * Zod Schema for Profile Form
+ * Defines validation rules for all profile fields
+ */
+const profileSchema = z.object({
+  name: z.string().min(1, "Name is required").min(2, "Name must be at least 2 characters"),
+  email: z.string().min(1, "Email is required").email("Invalid email address"),
+  phone: z.string().min(1, "Phone number is required"),
+  age: z.string().min(1, "Age is required").refine(
+    (val) => !isNaN(Number(val)) && Number(val) > 0 && Number(val) < 150,
+    "Please enter a valid age"
+  ),
+  address: z.string().min(1, "Address is required"),
+});
+
+// Type inference from Zod schema
+type ProfileFormData = z.infer<typeof profileSchema>;
+
 export default function ProfilePage() {
   const user = useAuthStore((state) => state.user);
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    name: user?.name || "John Doe",
-    email: user?.email || "john.doe@example.com",
-    phone: "+1 (555) 123-4567",
-    age: "28",
-    address: "123 Main Street, City, State 12345",
-  });
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const setUser = useAuthStore((state) => state.setUser);
   const baseUrl = `${import.meta.env.VITE_BASE_URL}/api/user`;
   const [saving, setSaving] = useState(false);
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
+  /**
+   * Profile Form - using react-hook-form with Zod resolver
+   */
+  const {
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<ProfileFormData>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      name: user?.name || "John Doe",
+      email: user?.email || "john.doe@example.com",
+      phone: "+1 (555) 123-4567",
+      age: "28",
+      address: "123 Main Street, City, State 12345",
+    },
+  });
 
-  const handleSave = () => {
-    // Save to backend with multipart form data
-    const doSave = async () => {
-      try {
-        setSaving(true);
-        const form = new FormData();
-        if (formData.name && formData.name !== user?.name)
-          form.append("name", formData.name);
-        if (selectedImage) form.append("profilePicture", selectedImage);
+  // Watch form values for display in profile card
+  const formData = watch();
 
-        const endpoint =
-          user?.role === "DOCTOR"
-            ? `${baseUrl}/update-doctor`
-            : `${baseUrl}/update-patient`;
-        const res = await axios.put(endpoint, form, {
-          withCredentials: true,
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        if (!res.data?.success) {
-          throw new Error(res.data?.message || "Failed to update profile");
-        }
+  // Update form when user data changes
+  useEffect(() => {
+    if (user) {
+      reset({
+        name: user.name || "John Doe",
+        email: user.email || "john.doe@example.com",
+        phone: "+1 (555) 123-4567",
+        age: "28",
+        address: "123 Main Street, City, State 12345",
+      });
+    }
+  }, [user, reset]);
 
-        // Fetch fresh profile to ensure updated data
-        const me = await axios.get(`${baseUrl}/authenticated-profile`, {
-          withCredentials: true,
-        });
-        if (me.data?.success && me.data?.data?.user) {
-          const updatedUser = me.data.data.user;
-          setUser(updatedUser);
-          setFormData((prev) => ({
-            ...prev,
-            name: updatedUser.name || prev.name,
-            email: updatedUser.email || prev.email,
-          }));
-        }
+  /**
+   * Handle form submission - simplified with react-hook-form
+   * Validation is handled automatically by zodResolver
+   */
+  const onSubmit = async (data: ProfileFormData) => {
+    try {
+      setSaving(true);
+      const form = new FormData();
+      if (data.name && data.name !== user?.name)
+        form.append("name", data.name);
+      if (selectedImage) form.append("profilePicture", selectedImage);
 
-        toast.success("Profile updated successfully");
-        setIsEditing(false);
-        setSelectedImage(null);
-        setPreviewUrl(null);
-      } catch (error) {
-        if (axios.isAxiosError(error) && error.response) {
-          toast.error(
-            error.response.data?.message || "Failed to update profile"
-          );
-        } else {
-          toast.error("Failed to update profile");
-        }
-      } finally {
-        setSaving(false);
+      const endpoint =
+        user?.role === "DOCTOR"
+          ? `${baseUrl}/update-doctor`
+          : `${baseUrl}/update-patient`;
+      const res = await axios.put(endpoint, form, {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || "Failed to update profile");
       }
-    };
-    doSave();
+
+      // Fetch fresh profile to ensure updated data
+      const me = await axios.get(`${baseUrl}/authenticated-profile`, {
+        withCredentials: true,
+      });
+      if (me.data?.success && me.data?.data?.user) {
+        const updatedUser = me.data.data.user;
+        setUser(updatedUser);
+        reset({
+          ...data,
+          name: updatedUser.name || data.name,
+          email: updatedUser.email || data.email,
+        });
+      }
+
+      toast.success("Profile updated successfully");
+      setIsEditing(false);
+      setSelectedImage(null);
+      setPreviewUrl(null);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        toast.error(
+          error.response.data?.message || "Failed to update profile"
+        );
+      } else {
+        toast.error("Failed to update profile");
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = () => {
     // Reset form data to original values
-    setFormData({
+    reset({
       name: user?.name || "John Doe",
       email: user?.email || "john.doe@example.com",
       phone: "+1 (555) 123-4567",
@@ -229,80 +283,94 @@ export default function ProfilePage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    disabled={!isEditing}
-                    className={isEditing ? "bg-white" : "bg-gray-50"}
-                  />
+              {/* Form using react-hook-form's handleSubmit */}
+              <form onSubmit={handleSubmit(onSubmit)}>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input
+                      id="name"
+                      {...register("name")}
+                      disabled={!isEditing}
+                      className={isEditing ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-900"}
+                    />
+                    {/* Display validation error from Zod schema */}
+                    {errors.name && (
+                      <p className="text-sm text-red-500">{errors.name.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      {...register("email")}
+                      disabled={!isEditing}
+                      className={isEditing ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-900"}
+                    />
+                    {errors.email && (
+                      <p className="text-sm text-red-500">{errors.email.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      {...register("phone")}
+                      disabled={!isEditing}
+                      className={isEditing ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-900"}
+                    />
+                    {errors.phone && (
+                      <p className="text-sm text-red-500">{errors.phone.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="age">Age</Label>
+                    <Input
+                      id="age"
+                      {...register("age")}
+                      disabled={!isEditing}
+                      className={isEditing ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-900"}
+                    />
+                    {errors.age && (
+                      <p className="text-sm text-red-500">{errors.age.message}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    disabled={!isEditing}
-                    className={isEditing ? "bg-white" : "bg-gray-50"}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    disabled={!isEditing}
-                    className={isEditing ? "bg-white" : "bg-gray-50"}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="age">Age</Label>
-                  <Input
-                    id="age"
-                    value={formData.age}
-                    onChange={(e) => handleInputChange("age", e.target.value)}
-                    disabled={!isEditing}
-                    className={isEditing ? "bg-white" : "bg-gray-50"}
-                  />
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => handleInputChange("address", e.target.value)}
-                  disabled={!isEditing}
-                  className={isEditing ? "bg-white" : "bg-gray-50"}
-                />
-              </div>
+                <div className="space-y-2 mt-6">
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    id="address"
+                    {...register("address")}
+                    disabled={!isEditing}
+                    className={isEditing ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-900"}
+                  />
+                  {errors.address && (
+                    <p className="text-sm text-red-500">{errors.address.message}</p>
+                  )}
+                </div>
 
-              {isEditing && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="flex space-x-4 pt-4"
-                >
-                  <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="bg-blue-600 hover:bg-blue-700"
+                {isEditing && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex space-x-4 pt-4 mt-4"
                   >
-                    {saving ? "Saving..." : "Save Changes"}
-                  </Button>
-                  <Button variant="outline" onClick={handleCancel}>
-                    Cancel
-                  </Button>
-                </motion.div>
-              )}
+                    <Button
+                      type="submit"
+                      disabled={saving}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {saving ? "Saving..." : "Save Changes"}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={handleCancel}>
+                      Cancel
+                    </Button>
+                  </motion.div>
+                )}
+              </form>
             </CardContent>
           </Card>
 
