@@ -14,27 +14,27 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await axios.post(
-        "http://localhost:3001/api/auth/login",
-        {
-          email,
-          password,
-        }
-      );
+  e.preventDefault();
+  setIsLoading(true);
 
-      localStorage.setItem("token", response.data.token);
-      navigate("/dashboard/patient");
-    } catch (error) {
-      setError("Invalid credentials");
-      console.error("Login error:", error);
-    }
-  };
+  try {
+    const response = await axios.post(
+      "http://localhost:3001/api/auth/login",
+      { email, password }
+    );
 
+    localStorage.setItem("token", response.data.token);
+    navigate("/dashboard/patient");
+  } catch (error) {
+    setError("Invalid credentials");
+  } finally {
+    setIsLoading(false);
+  }
+};
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
@@ -62,9 +62,9 @@ export default function LoginPage() {
               />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
-            <Button type="submit" className="w-full">
-              Login
-            </Button>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+  {isLoading ? "Logging in..." : "Login"}
+</Button>
           </form>
         </CardContent>
       </Card>

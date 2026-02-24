@@ -1,6 +1,13 @@
 import { Navbar } from "../components/navbar";
 import { Footer } from "../components/footer";
+const [isLoading, setIsLoading] = useState(true);
+useEffect(() => {
+  const timer = setTimeout(() => {
+    setIsLoading(false);
+  }, 1200);
 
+  return () => clearTimeout(timer);
+}, []);
 export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
