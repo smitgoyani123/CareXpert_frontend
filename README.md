@@ -222,8 +222,6 @@ CareXpert_frontend/
 │   ├── main.tsx             # Application entry point
 │   ├── globals.css          # Global styles & Tailwind directives
 │   └── vite-env.d.ts        # Vite/TypeScript env type declarations
-├── styles/
-│   └── globals.css          # Additional global styles
 ├── components.json          # shadcn/ui configuration
 ├── tailwind.config.ts       # Tailwind CSS configuration
 ├── vite.config.ts           # Vite configuration
