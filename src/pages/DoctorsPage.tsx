@@ -86,7 +86,7 @@ export default function DoctorsPage() {
     notes: "",
   });
   const [isBooking, setIsBooking] = useState(false);
-
+const [bookingError, setBookingError] = useState("");
   const user = useAuthStore((state) => state.user);
   /* ================= EFFECTS ================= */
 
@@ -183,11 +183,22 @@ export default function DoctorsPage() {
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bookingData.date || !bookingData.time) {
-      toast.error("Please select both date and time");
-      return;
-    }
+   if (isBooking) return; // Prevent duplicate submissions
 
+setBookingError("");
+
+// Strong validation
+if (!bookingData.date || !bookingData.time) {
+  setBookingError("Please select both date and time.");
+  return;
+}
+
+// Prevent past date booking
+const today = new Date().toISOString().split("T")[0];
+if (bookingData.date < today) {
+  setBookingError("You cannot book an appointment in the past.");
+  return;
+}
     setIsBooking(true);
     try {
       const res = await api.post(
@@ -201,7 +212,9 @@ export default function DoctorsPage() {
       }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response) {
-        toast.error(err.response.data?.message || "Failed to book an appointment");
+     setBookingError(
+  err.response.data?.message || "Failed to book an appointment"
+);
       } else {
         toast.error("An unexpected error occurred");
       }
@@ -345,9 +358,13 @@ export default function DoctorsPage() {
           </DialogHeader>
 
           {selectedDoctor && (
-            <form onSubmit={handleBookingSubmit} className="space-y-4">
+            <form
+  onSubmit={handleBookingSubmit}
+  className="space-y-4"
+>
               <Input
                 type="date"
+                disabled={isBooking}
                 value={bookingData.date}
                 onChange={(e) =>
                   setBookingData({ ...bookingData, date: e.target.value })
@@ -355,6 +372,7 @@ export default function DoctorsPage() {
               />
               <Select
                 value={bookingData.time}
+                disabled={isBooking}
                 onValueChange={(v) =>
                   setBookingData({ ...bookingData, time: v })
                 }
@@ -370,15 +388,29 @@ export default function DoctorsPage() {
                   ))}
                 </SelectContent>
               </Select>
-
+{bookingError && (
+  <p className="text-sm text-red-500">{bookingError}</p>
+)}
               <DialogFooter>
-                <Button variant="outline" onClick={closeBookingDialog}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isBooking}>
-                  {isBooking ? "Booking..." : "Book"}
-                </Button>
-              </DialogFooter>
+  <Button
+    variant="outline"
+    onClick={closeBookingDialog}
+    disabled={isBooking}
+  >
+    Cancel
+  </Button>
+
+  <Button type="submit" disabled={isBooking}>
+    {isBooking ? (
+      <span className="flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Booking...
+      </span>
+    ) : (
+      "Book"
+    )}
+  </Button>
+</DialogFooter>
             </form>
           )}
         </DialogContent>
