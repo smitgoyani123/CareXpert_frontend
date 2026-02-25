@@ -199,7 +199,6 @@ if (bookingData.date < today) {
   setBookingError("You cannot book an appointment in the past.");
   return;
 }
-
     setIsBooking(true);
     try {
       const res = await api.post(
@@ -213,7 +212,7 @@ if (bookingData.date < today) {
       }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response) {
-       setBookingError(
+     setBookingError(
   err.response.data?.message || "Failed to book an appointment"
 );
       } else {
@@ -359,13 +358,13 @@ if (bookingData.date < today) {
           </DialogHeader>
 
           {selectedDoctor && (
-           <form
+            <form
   onSubmit={handleBookingSubmit}
   className="space-y-4"
 >
               <Input
                 type="date"
-                  disabled={isBooking}
+                disabled={isBooking}
                 value={bookingData.date}
                 onChange={(e) =>
                   setBookingData({ ...bookingData, date: e.target.value })
@@ -373,7 +372,7 @@ if (bookingData.date < today) {
               />
               <Select
                 value={bookingData.time}
-                  disabled={isBooking}
+                disabled={isBooking}
                 onValueChange={(v) =>
                   setBookingData({ ...bookingData, time: v })
                 }
@@ -393,24 +392,25 @@ if (bookingData.date < today) {
   <p className="text-sm text-red-500">{bookingError}</p>
 )}
               <DialogFooter>
-               <Button
-  variant="outline"
-  onClick={closeBookingDialog}
-  disabled={isBooking}
->
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isBooking}>
-  {isBooking ? (
-    <span className="flex items-center gap-2">
-      <Loader2 className="h-4 w-4 animate-spin" />
-      Booking...
-    </span>
-  ) : (
-    "Book"
-  )}
-</Button>
-              </DialogFooter>
+  <Button
+    variant="outline"
+    onClick={closeBookingDialog}
+    disabled={isBooking}
+  >
+    Cancel
+  </Button>
+
+  <Button type="submit" disabled={isBooking}>
+    {isBooking ? (
+      <span className="flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Booking...
+      </span>
+    ) : (
+      "Book"
+    )}
+  </Button>
+</DialogFooter>
             </form>
           )}
         </DialogContent>
