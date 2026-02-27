@@ -91,10 +91,10 @@ export default function DoctorsPage() {
   const user = useAuthStore((state) => state.user);
   const [searchParams, setSearchParams] = useSearchParams();
 
-const [currentPage, setCurrentPage] = useState(1);
-const [itemsPerPage] = useState(5);
-const [sortBy, setSortBy] = useState("name-asc");
-const [showScrollTop, setShowScrollTop] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(5);
+  const [sortBy, setSortBy] = useState("name-asc");
+  const [showScrollTop, setShowScrollTop] = useState(false);
   /* ================= EFFECTS ================= */
 
   useEffect(() => {
@@ -135,25 +135,25 @@ const [showScrollTop, setShowScrollTop] = useState(false);
   }, [debouncedSearch]);
 
   useEffect(() => {
-  const page = Number(searchParams.get("page")) || 1;
-  const sort = searchParams.get("sort") || "name-asc";
-  const specialty = searchParams.get("specialty") || "all";
-  const location = searchParams.get("location") || "all";
+    const page = Number(searchParams.get("page")) || 1;
+    const sort = searchParams.get("sort") || "name-asc";
+    const specialty = searchParams.get("specialty") || "all";
+    const location = searchParams.get("location") || "all";
 
-  setCurrentPage(page);
-  setSortBy(sort);
-  setSelectedSpecialty(specialty);
-  setSelectedLocation(location);
-}, [searchParams]);
+    setCurrentPage(page);
+    setSortBy(sort);
+    setSelectedSpecialty(specialty);
+    setSelectedLocation(location);
+  }, [searchParams]);
 
-useEffect(() => {
-  setSearchParams({
-    page: String(currentPage),
-    sort: sortBy,
-    specialty: selectedSpecialty,
-    location: selectedLocation,
-  });
-}, [currentPage, sortBy, selectedSpecialty, selectedLocation, setSearchParams]);
+  useEffect(() => {
+    setSearchParams({
+      page: String(currentPage),
+      sort: sortBy,
+      specialty: selectedSpecialty,
+      location: selectedLocation,
+    });
+  }, [currentPage, sortBy, selectedSpecialty, selectedLocation, setSearchParams]);
   /* ================= FILTERS ================= */
 
   const specialties = [
@@ -185,45 +185,45 @@ useEffect(() => {
   });
 
   const sortedDoctors = [...filteredDoctors].sort((a, b) => {
-  if (sortBy === "name-asc") {
-    return a.user.name.localeCompare(b.user.name);
-  }
-  if (sortBy === "name-desc") {
-    return b.user.name.localeCompare(a.user.name);
-  }
-  if (sortBy === "fee-asc") {
-    return a.consultationFee - b.consultationFee;
-  }
-  if (sortBy === "fee-desc") {
-    return b.consultationFee - a.consultationFee;
-  }
-  return 0;
-});
-
-const totalPages = Math.ceil(sortedDoctors.length / itemsPerPage);
-
-const paginatedDoctors = sortedDoctors.slice(
-  (currentPage - 1) * itemsPerPage,
-  currentPage * itemsPerPage
-);
-useEffect(() => {
-  setCurrentPage(1);
-}, [selectedSpecialty, selectedLocation, debouncedSearch, sortBy]);
-useEffect(() => {
-  const handleScroll = () => {
-    if (window.scrollY > 300) {
-      setShowScrollTop(true);
-    } else {
-      setShowScrollTop(false);
+    if (sortBy === "name-asc") {
+      return a.user.name.localeCompare(b.user.name);
     }
-  };
+    if (sortBy === "name-desc") {
+      return b.user.name.localeCompare(a.user.name);
+    }
+    if (sortBy === "fee-asc") {
+      return a.consultationFee - b.consultationFee;
+    }
+    if (sortBy === "fee-desc") {
+      return b.consultationFee - a.consultationFee;
+    }
+    return 0;
+  });
 
-  window.addEventListener("scroll", handleScroll);
+  const totalPages = Math.ceil(sortedDoctors.length / itemsPerPage);
 
-  return () => {
-    window.removeEventListener("scroll", handleScroll);
-  };
-}, []);
+  const paginatedDoctors = sortedDoctors.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedSpecialty, selectedLocation, debouncedSearch, sortBy]);
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   /* ================= ACTIONS ================= */
 
@@ -289,12 +289,12 @@ useEffect(() => {
       setIsBooking(false);
     }
   };
-const scrollToTop = () => {
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth",
-  });
-};
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
   const generateTimeSlots = () => {
     const slots: string[] = [];
     for (let h = 9; h <= 17; h++) {
@@ -365,17 +365,17 @@ const scrollToTop = () => {
                 ))}
               </SelectContent>
             </Select>
-<Select value={sortBy} onValueChange={setSortBy}>
-  <SelectTrigger>
-    <SelectValue placeholder="Sort By" />
-  </SelectTrigger>
-  <SelectContent>
-    <SelectItem value="name-asc">Name A to Z</SelectItem>
-    <SelectItem value="name-desc">Name Z to A</SelectItem>
-    <SelectItem value="fee-asc">Fee Low to High</SelectItem>
-    <SelectItem value="fee-desc">Fee High to Low</SelectItem>
-  </SelectContent>
-</Select>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name-asc">Name A to Z</SelectItem>
+                <SelectItem value="name-desc">Name Z to A</SelectItem>
+                <SelectItem value="fee-asc">Fee Low to High</SelectItem>
+                <SelectItem value="fee-desc">Fee High to Low</SelectItem>
+              </SelectContent>
+            </Select>
             <Button>
               <Filter className="h-4 w-4 mr-2" /> Apply
             </Button>
@@ -430,26 +430,26 @@ const scrollToTop = () => {
             ))}
 
             <div className="flex justify-center items-center gap-4 mt-8">
-  <Button
-    variant="outline"
-    disabled={currentPage === 1}
-    onClick={() => setCurrentPage((prev) => prev - 1)}
-  >
-    Previous
-  </Button>
+              <Button
+                variant="outline"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => prev - 1)}
+              >
+                Previous
+              </Button>
 
-  <span>
-    Page {currentPage} of {totalPages}
-  </span>
+              <span>
+                Page {currentPage} of {totalPages}
+              </span>
 
-  <Button
-    variant="outline"
-    disabled={currentPage === totalPages}
-    onClick={() => setCurrentPage((prev) => prev + 1)}
-  >
-    Next
-  </Button>
-</div>
+              <Button
+                variant="outline"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev) => prev + 1)}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -516,13 +516,13 @@ const scrollToTop = () => {
         </DialogContent>
       </Dialog>
       {showScrollTop && (
-  <Button
-    onClick={scrollToTop}
-    className="fixed bottom-6 right-6 rounded-full h-12 w-12 shadow-lg z-50"
-  >
-    ↑
-  </Button>
-)}
+        <Button
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 rounded-full h-12 w-12 shadow-lg z-50"
+        >
+          ↑
+        </Button>
+      )}
     </div>
   );
 }

@@ -14,6 +14,26 @@ import axios from "axios";
 import { Badge } from "../components/ui/badge";
 import { notify } from "@/lib/toast";
 
+interface AbnormalValue {
+  name: string;
+  value: string | number;
+  unit: string;
+  normal: string;
+  issue: string;
+}
+
+interface ReportAnalysisResult {
+  id?: string;
+  filename?: string;
+  status?: "IDLE" | "PROCESSING" | "COMPLETED" | "FAILED";
+  summary?: string;
+  abnormalValues?: AbnormalValue[];
+  possibleConditions?: (string | { condition: string })[];
+  recommendation?: string;
+  disclaimer?: string;
+  error?: string;
+}
+
 export default function UploadReportPage() {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -21,7 +41,7 @@ export default function UploadReportPage() {
   const [status, setStatus] = useState<
     "IDLE" | "PROCESSING" | "COMPLETED" | "FAILED"
   >("IDLE");
-  const [result, setResult] = useState<any | null>(null);
+  const [result, setResult] = useState<ReportAnalysisResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const pollRef = useRef<number | null>(null);
@@ -65,7 +85,7 @@ export default function UploadReportPage() {
           setStatus(parsedLast.status || "COMPLETED");
         }
       }
-    } catch {}
+    } catch { }
 
     return () => stopPolling();
   }, []);
@@ -101,7 +121,7 @@ export default function UploadReportPage() {
     }, 2000);
   };
 
-const handleSubmit = async () => {
+  const handleSubmit = async () => {
     if (!file) return;
     setErrorMessage(null);
     setResult(null);

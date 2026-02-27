@@ -624,7 +624,7 @@ export default function ChatPage() {
     onMessage(handleIncomingMessage);
 
     return () => {
-      offMessage(handleIncomingMessage);
+      offMessage();
     };
   }, [selectedChat, user]);
 
