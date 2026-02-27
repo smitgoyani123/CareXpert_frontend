@@ -26,6 +26,7 @@ import {
   Loader2,
   Stethoscope,
 } from "lucide-react";
+import { patientAPI, NormalizedDoctor } from "@/lib/services";
 import { api } from "@/lib/api";
 import axios from "axios";
 import { useAuthStore } from "@/store/authstore";
@@ -34,28 +35,8 @@ import { notify } from "@/lib/toast";
 
 /* ================= TYPES ================= */
 
-type FindDoctors = {
-  id: string;
-  userId: string;
-  specialty: string;
-  clinicLocation: string;
-  experience: string;
-  education: string;
-  bio: string;
-  languages: string[];
-  consultationFee: number;
-  user: {
-    name: string;
-    profilePicture: string;
-  };
-};
+type FindDoctors = NormalizedDoctor;
 
-type FindDoctorsApiResponse = {
-  statusCode: number;
-  message: string;
-  success: boolean;
-  data: FindDoctors[];
-};
 
 type AppointmentBookingData = {
   doctorId: string;
@@ -115,12 +96,7 @@ export default function DoctorsPage() {
     const fetchDoctors = async () => {
       setIsLoading(true);
       try {
-        const res = await api.get<FindDoctorsApiResponse>(
-          `/patient/fetchAllDoctors`,
-          {
-            params: { search: debouncedSearch },
-          }
-        );
+        const res = await patientAPI.getAllDoctors();
         if (res.data.success) {
           setDoctors(res.data.data);
         }
@@ -197,8 +173,8 @@ export default function DoctorsPage() {
   });
 
   const sortedDoctors = [...filteredDoctors].sort((a, b) => {
-    if (sortBy === "name-asc") return a.user.name.localeCompare(b.user.name);
-    if (sortBy === "name-desc") return b.user.name.localeCompare(a.user.name);
+    if (sortBy === "name-asc") return a.name.localeCompare(b.name);
+    if (sortBy === "name-desc") return b.name.localeCompare(a.name);
     if (sortBy === "fee-asc") return a.consultationFee - b.consultationFee;
     if (sortBy === "fee-desc") return b.consultationFee - a.consultationFee;
     return 0;
@@ -389,14 +365,14 @@ export default function DoctorsPage() {
                 <CardContent className="p-6 grid lg:grid-cols-12 gap-6">
                   <div className="lg:col-span-8 flex gap-4">
                     <Avatar className="h-20 w-20">
-                      <AvatarImage src={doctor.user.profilePicture} />
+                      <AvatarImage src={doctor.profilePicture} />
                       <AvatarFallback>
-                        {doctor.user.name[0]}
+                        {doctor.name[0]}
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <h3 className="text-xl font-semibold">
-                        {doctor.user.name}
+                        {doctor.name}
                       </h3>
                       <p className="text-blue-600">{doctor.specialty}</p>
                       <p className="text-sm">{doctor.clinicLocation}</p>

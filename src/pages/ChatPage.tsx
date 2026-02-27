@@ -7,6 +7,7 @@ import { ChatSidebar } from "../components/ChatSidebar";
 import { MessageContainer } from "../components/MessageContainer";
 import { ChatInput } from "../components/ChatInput";
 import { api } from "@/lib/api";
+import { patientAPI, NormalizedDoctor } from "@/lib/services";
 import axios from "axios"; // Needed for axios.isAxiosError
 import {
   joinRoom,
@@ -22,16 +23,9 @@ import { useAuthStore } from "@/store/authstore";
 import { relativeTime } from "@/lib/utils";
 import { notify } from "@/lib/toast";
 
-type DoctorData = {
-  id: string;
-  specialty: string;
-  clinicLocation: string;
-  user: {
-    name: string;
-    profilePicture: string;
-  };
-  userId: string;
-};
+// Uses the normalized flat shape from patientAPI so name/profilePicture
+// are always at the top level regardless of backend payload shape.
+type DoctorData = NormalizedDoctor;
 
 type UserData = {
   id: string;
@@ -67,7 +61,7 @@ export default function ChatPage() {
   useEffect(() => {
     async function fetchAllDoctors() {
       try {
-        const res = await api.get(`/patient/fetchAllDoctors`);
+        const res = await patientAPI.getAllDoctors();
         if (res.data.success) {
           setDoctors(res.data.data);
         }
@@ -334,10 +328,13 @@ export default function ChatPage() {
         userId: conversation.otherUser.id,
         specialty: "Patient",
         clinicLocation: "",
-        user: {
-          name: conversation.otherUser.name,
-          profilePicture: conversation.otherUser.profilePicture,
-        },
+        name: conversation.otherUser.name ?? "",
+        profilePicture: conversation.otherUser.profilePicture ?? "",
+        experience: "",
+        education: "",
+        bio: "",
+        languages: [],
+        consultationFee: 0,
       },
     });
     setMessages([]);
@@ -700,6 +697,7 @@ export default function ChatPage() {
           onSelectConversation={setSelectedConversation}
         />
 
+<<<<<<< main
         <div className="flex-1 flex flex-col min-w-0">
           <Card className="h-full flex flex-col">
             <CardHeader className="border-b">{renderHeader()}</CardHeader>
@@ -721,6 +719,629 @@ export default function ChatPage() {
               selectedChat={selectedChat}
               isLoading={isAiLoading}
             />
+=======
+            {/* AI Tab */}
+            <TabsContent value="ai" className="flex-1 overflow-hidden">
+              <Card className="h-full flex flex-col">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Bot className="h-5 w-5 text-purple-600" />
+                    CareXpert AI
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-y-auto scrollbar-hide">
+                  <div
+                    className={`p-3 rounded-lg cursor-pointer transition-colors ${selectedChat === "ai"
+                      ? "bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700"
+                      : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                      }`}
+                    onClick={() => {
+                      setSelectedChat("ai");
+                      setShowSidebar(false);
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+                        <Bot className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 dark:text-white">
+                          AI Assistant
+                        </h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                          Always available
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Doctors Tab */}
+            <TabsContent value="doctors" className="flex-1 overflow-hidden">
+              <Card className="h-full flex flex-col">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <MessageCircle className="h-5 w-5 text-blue-600" />
+                    Doctor Chats
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 flex-1 overflow-y-auto scrollbar-hide">
+                  {doctors.length > 0 ? (
+                    doctors.map((chat) => (
+                      <div
+                        key={chat.id}
+                        className={`p-3 rounded-lg cursor-pointer transition-colors ${typeof selectedChat === "object" &&
+                          selectedChat.type === "doctor" &&
+                          selectedChat.data.id === chat.id
+                          ? "bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700"
+                          : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                          }`}
+                        onClick={() => {
+                          setSelectedChat({ type: "doctor", data: chat });
+                          setShowSidebar(false);
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage
+                                src={
+                                  chat.profilePicture || "/placeholder.svg"
+                                }
+                              />
+                              <AvatarFallback>
+                                {chat.name
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                              {chat.name}
+                            </h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {chat.specialty}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-center text-gray-500 dark:text-gray-400">
+                      No doctors found.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Patients Tab - Only for Doctors */}
+            {user?.role === "DOCTOR" && (
+              <TabsContent value="patients" className="flex-1 overflow-hidden">
+                <Card className="h-full flex flex-col">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Users className="h-5 w-5 text-green-600" />
+                      Patient Messages
+                    </CardTitle>
+                    <CardDescription>Chat with your patients</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="h-[500px] overflow-y-auto scrollbar-hide">
+                      {dmConversations.length > 0 ? (
+                        dmConversations.map((conversation) => (
+                          <div
+                            key={conversation.otherUser.id}
+                            className={`p-4 border-b cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${selectedConversation?.otherUser.id ===
+                              conversation.otherUser.id
+                              ? "bg-green-50 dark:bg-green-900/20 border-l-4 border-l-green-500"
+                              : ""
+                              }`}
+                            onClick={() => {
+                              handleConversationSelect(conversation);
+                              setShowSidebar(false);
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage
+                                  src={
+                                    conversation.otherUser.profilePicture ||
+                                    "/placeholder.svg"
+                                  }
+                                />
+                                <AvatarFallback>
+                                  {conversation.otherUser.name
+                                    .split(" ")
+                                    .map((n: string) => n[0])
+                                    .join("")}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                  {conversation.otherUser.name}
+                                </h4>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                  {conversation.lastMessage.message}
+                                </p>
+                                <p className="text-xs text-gray-400 dark:text-gray-500">
+                                  {relativeTime(conversation.lastMessage.timestamp)}
+                                </p>
+                              </div>
+                              {conversation.unreadCount > 0 && (
+                                <Badge
+                                  variant="destructive"
+                                  className="text-xs"
+                                >
+                                  {conversation.unreadCount}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+                          <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No conversations yet</p>
+                          <p className="text-sm">
+                            Patients will appear here when they message you
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
+            {/* Community Tab */}
+            <TabsContent value="community" className="flex-1 overflow-hidden">
+              <Card className="h-full flex flex-col">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-lg">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-green-600" />
+                      City Rooms
+                    </div>
+                    <div>
+                      <Plus className="bg-gray-200 dark:bg-gray-700 rounded-full h-8 w-8 p-1" />
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+
+                <CardContent className="space-y-3 flex-1 overflow-y-auto scrollbar-hide">
+                  {cityRoom.length > 0 ? (
+                    cityRoom.map((room) => (
+                      <div
+                        key={room.id}
+                        className={`p-3 rounded-lg cursor-pointer transition-colors ${typeof selectedChat === "object" &&
+                          selectedChat.type === "room" &&
+                          selectedChat.name === room.name
+                          ? "bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-700"
+                          : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                          }`}
+                        onClick={() => {
+                          setSelectedChat({ type: "room", ...room });
+                          setShowSidebar(false);
+                        }}
+                      >
+                        <div className="space-y-2">
+                          <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                            {room.name}
+                          </h4>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3 text-gray-400" />
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {room.name}
+                            </span>
+                          </div>
+                          <Badge variant="secondary" className="text-xs">
+                            {room.members.length} members
+                          </Badge>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p>Loading city rooms...</p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Chat Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <Card className="h-full flex flex-col">
+            {/* Chat Header */}
+            <CardHeader className="border-b">
+              {selectedChat === "ai" && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+                      <Bot className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">
+                        CareXpert AI Assistant
+                      </CardTitle>
+                      <CardDescription>
+                        Your personal health companion
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleClearAiChat}
+                      disabled={isClearingAi}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {isClearingAi ? "Clearing..." : "Clear Chat"}
+                    </Button>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      Language:
+                    </span>
+                    <select
+                      value={selectedLanguage}
+                      onChange={(e) => handleLanguageChange(e.target.value)}
+                      className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      {languageOptions.map((lang) => (
+                        <option key={lang.code} value={lang.code}>
+                          {lang.flag} {lang.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+              {typeof selectedChat === "object" &&
+                selectedChat.type === "doctor" && (
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage
+                        src={selectedChat.data.profilePicture}
+                      />
+                      <AvatarFallback>
+                        {selectedChat.data.name
+                          .split(" ")
+                          .map((n: string) => n[0])
+                          .join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <CardTitle className="text-lg">
+                        {selectedChat.data.name}
+                      </CardTitle>
+                      <CardDescription>
+                        {selectedChat.data.specialty} • Online
+                      </CardDescription>
+                    </div>
+                  </div>
+                )}
+              {typeof selectedChat === "object" &&
+                selectedChat.type === "room" && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
+                        <Users className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">
+                          {selectedChat.name}
+                        </CardTitle>
+                        <CardDescription>
+                          {selectedChat.members.length} members •{" "}
+                          {selectedChat.name}
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowMembers(!showMembers)}
+                      className="flex items-center gap-2"
+                    >
+                      <Users className="h-4 w-4" />
+                      {showMembers ? "Hide Members" : "Show Members"}
+                    </Button>
+                  </div>
+                )}
+            </CardHeader>
+
+            {/* Messages Area */}
+            <CardContent className="flex-1 p-4 overflow-y-auto scrollbar-hide">
+              <div className="h-full">
+                {selectedChat === "ai" && (
+                  <>
+                    {aiMessages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`flex mb-4 ${msg.type === "user" ? "justify-end" : "justify-start"
+                          }`}
+                      >
+                        <div
+                          className={`max-w-[80%] p-3 rounded-lg ${msg.type === "user"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
+                            }`}
+                        >
+                          {msg.type === "ai" ? (
+                            <div className="text-sm">
+                              {msg.aiData && (
+                                <div className="mb-3">
+                                  <Badge
+                                    variant={
+                                      normalizeSeverity(msg.aiData.severity) ===
+                                        "severe"
+                                        ? "destructive"
+                                        : normalizeSeverity(
+                                          msg.aiData.severity
+                                        ) === "moderate"
+                                          ? "default"
+                                          : "secondary"
+                                    }
+                                    className="mb-2"
+                                  >
+                                    {msg.aiData.severity
+                                      .charAt(0)
+                                      .toUpperCase() +
+                                      msg.aiData.severity.slice(1)}{" "}
+                                    Severity
+                                  </Badge>
+                                </div>
+                              )}
+                              {msg.message
+                                .split("\n")
+                                .map((line: string, index: number) => {
+                                  if (
+                                    line.startsWith("**") &&
+                                    line.endsWith("**")
+                                  ) {
+                                    return (
+                                      <div
+                                        key={index}
+                                        className="font-semibold text-purple-600 dark:text-purple-400 mb-2"
+                                      >
+                                        {line.replace(/\*\*/g, "")}
+                                      </div>
+                                    );
+                                  } else if (line.startsWith("•")) {
+                                    return (
+                                      <div key={index} className="ml-4 mb-1">
+                                        {line}
+                                      </div>
+                                    );
+                                  } else if (line.trim() === "") {
+                                    return <br key={index} />;
+                                  } else {
+                                    return (
+                                      <div key={index} className="mb-2">
+                                        {line}
+                                      </div>
+                                    );
+                                  }
+                                })}
+                            </div>
+                          ) : (
+                            <p className="text-sm whitespace-pre-wrap">
+                              {msg.message}
+                            </p>
+                          )}
+                          <p
+                            className={`text-xs mt-1 ${msg.type === "user"
+                              ? "text-blue-100"
+                              : "text-gray-500 dark:text-gray-400"
+                              }`}
+                          >
+                            {msg.time}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {/*fix4*/}
+                    {isAiLoading && (
+                      <div className="flex justify-start mb-4">
+                        <div className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white p-3 rounded-lg max-w-[80%]">
+                          <div className="flex items-center gap-2">
+                            <div className="flex space-x-1">
+                              <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"></div>
+                              <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce delay-100"></div>
+                              <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce delay-200"></div>
+                            </div>
+                            <span className="text-sm">
+                              AI is analyzing...
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+                {/* doctor and community chats */}
+                {typeof selectedChat === "object" &&
+                  (selectedChat.type === "doctor" ||
+                    selectedChat.type === "room") &&
+                  (messages.length > 0 ? (
+                    messages
+                      .filter((msg) =>
+                        selectedChat.type === "room"
+                          ? !msg.roomId ||
+                          msg.roomId === (activeRoomId || selectedChat.id)
+                          : true
+                      )
+                      .map((msg, index) => (
+                        <div
+                          key={index}
+                          className={`flex mb-2 ${(msg as any).type === "user" ||
+                            msg.senderId === user?.id
+                            ? "justify-end"
+                            : "justify-start"
+                            }`}
+                        >
+                          {selectedChat.type === "room" &&
+                            !(
+                              (msg as any).type === "user" ||
+                              msg.senderId === user?.id
+                            ) && (
+                              <div className="mr-2 mt-[2px]">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={"/placeholder-user.jpg"} />
+                                  <AvatarFallback className="text-[10px]">
+                                    {msg.username?.charAt(0) || "U"}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </div>
+                            )}
+                          <div
+                            className={`max-w-[80%] py-2 px-[10px] rounded-lg ${(msg as any).type === "user" ||
+                              msg.senderId === user?.id
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
+                              }`}
+                          >
+                            {msg.messageType === "IMAGE" && msg.imageUrl ? (
+                              <img
+                                src={msg.imageUrl}
+                                alt="sent-img"
+                                className="rounded mb-1 max-w-full h-auto"
+                              />
+                            ) : (
+                              <p className="text-sm whitespace-pre-wrap">
+                                {msg.text}
+                              </p>
+                            )}
+                            <p className="text-xs mt-1 text-right text-gray-400">
+                              {msg.time}
+                            </p>
+                          </div>
+                          {selectedChat.type === "room" &&
+                            ((msg as any).type === "user" ||
+                              msg.senderId === user?.id) && (
+                              <div className="ml-2 mt-[2px]">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={user?.profilePicture} />
+                                  <AvatarFallback className="text-[10px]">
+                                    {user?.name?.charAt(0) || "U"}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </div>
+                            )}
+                        </div>
+                      ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500 dark:text-gray-400">
+                        {selectedChat.type === "doctor"
+                          ? "Start a conversation with your doctor"
+                          : "Join the community discussion"}
+                      </p>
+                    </div>
+                  ))}
+                <div ref={messagesEndRef} /> {/* Element to scroll into view */}
+              </div>
+            </CardContent>
+
+            {/* Community Members Section */}
+            {typeof selectedChat === "object" &&
+              selectedChat.type === "room" &&
+              showMembers && (
+                <div className="border-t p-4 bg-gray-50 dark:bg-gray-800">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Community Members ({communityMembers.length})
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto scrollbar-hide">
+                    {communityMembers.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center space-x-3 p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={member.profilePicture} />
+                          <AvatarFallback className="bg-blue-600 text-white text-sm">
+                            {member.name?.charAt(0) || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {member.name}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant={
+                                member.role === "DOCTOR"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                              className="text-xs"
+                            >
+                              {member.role === "DOCTOR" ? (
+                                <>
+                                  <Stethoscope className="h-3 w-3 mr-1" />
+                                  Doctor
+                                </>
+                              ) : (
+                                <>
+                                  <User className="h-3 w-3 mr-1" />
+                                  Patient
+                                </>
+                              )}
+                            </Badge>
+                            {member.specialty && (
+                              <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                {member.specialty}
+                              </span>
+                            )}
+                          </div>
+                          {member.location && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              📍 {member.location}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            {/* Message Input */}
+            <div className="border-t p-4">
+              <div className="flex gap-2">
+
+                {/* fix2 */}
+                <Input
+                  placeholder="Type your message..."
+                  value={message}
+                  disabled={selectedChat === "ai" && isAiLoading}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setMessage(e.target.value)
+                  }
+                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                    if (e.key === "Enter" && !isAiLoading) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  className="flex-1"
+                />
+                {/* fix1 */}
+                <Button
+                  onClick={handleSendMessage}
+                  className="px-6"
+                  disabled={!message.trim() || (selectedChat === "ai" && isAiLoading)}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+>>>>>>> main
           </Card>
         </div>
       </div>
