@@ -31,10 +31,11 @@ import {
 } from "../components/ui/select";
 import { Textarea } from "../components/ui/textarea";
 import { MapPin, Clock, Star, Video, User } from "lucide-react";
-import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { patientAPI, NormalizedDoctor } from "@/lib/services";
 import axios from "axios";
 import { useAuthStore } from "@/store/authstore";
+import { notify } from "@/lib/toast";
 
 /**
  * Zod Schema for Appointment Booking Form
@@ -57,35 +58,14 @@ const appointmentSchema = z.object({
 // Type inference from Zod schema
 type AppointmentFormData = z.infer<typeof appointmentSchema>;
 
-// Type for Doctor data from API
-type Doctor = {
-  id: string;
-  userId: string;
-  specialty: string;
-  clinicLocation: string;
-  experience: string;
-  education: string;
-  bio: string;
-  languages: string[];
-  consultationFee: number;
-  user: {
-    name: string;
-    profilePicture: string;
-  };
-};
-
-type DoctorApiResponse = {
-  statusCode: number;
-  message: string;
-  success: boolean;
-  data: Doctor;
-};
+// Type for Doctor data — uses the normalized flat shape from patientAPI
+type Doctor = NormalizedDoctor;
 
 export default function BookAppointmentPage() {
   const { id: doctorId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  
+
   // UI state - kept as useState since these are not form data
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [loading, setLoading] = useState(true);
@@ -123,21 +103,19 @@ export default function BookAppointmentPage() {
 
     const fetchDoctor = async () => {
       try {
-        const res = await api.get<DoctorApiResponse>(
-          `/api/patient/fetchAllDoctors`
-        );
-        
+        const res = await patientAPI.getAllDoctors();
+
         if (res.data.success) {
-          const foundDoctor = res.data.data;
-          if (foundDoctor && foundDoctor.id === doctorId) {
+          const foundDoctor = (res.data.data as Doctor[]).find((d) => d.id === doctorId);
+          if (foundDoctor) {
             setDoctor(foundDoctor);
           } else {
-            toast.error("Doctor not found");
+            notify.error("Doctor not found");
             navigate("/doctors");
           }
         }
       } catch (err: any) {
-        toast.error(err?.message || "Failed to fetch doctor details");
+        notify.error(err?.message || "Failed to fetch doctor details");
         navigate("/doctors");
       } finally {
         setLoading(false);
@@ -156,20 +134,20 @@ export default function BookAppointmentPage() {
    */
   const onSubmit = async (data: AppointmentFormData) => {
     setBooking(true);
-    
+
     try {
       // Used centralized api instance and react-hook-form data
       const res = await api.post(`/patient/book-direct-appointment`, data);
 
       if (res.data.success) {
-        toast.success("Appointment request sent successfully! You will be notified once the doctor responds.");
+        notify.success("Appointment request sent successfully! You will be notified once the doctor responds.");
         navigate("/dashboard/patient");
       }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response) {
-        toast.error(err.response.data?.message || "Failed to book appointment");
+        notify.error(err.response.data?.message || "Failed to book appointment");
       } else {
-        toast.error("An unexpected error occurred");
+        notify.error("An unexpected error occurred");
       }
     } finally {
       setBooking(false);
@@ -218,7 +196,7 @@ export default function BookAppointmentPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
-      
+
       <div className="container mx-auto px-4 py-8 pt-20">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -227,7 +205,7 @@ export default function BookAppointmentPage() {
               Book an Appointment
             </h1>
             <p className="text-gray-600 dark:text-gray-300">
-              Schedule your consultation with {doctor.user.name}
+              Schedule your consultation with {doctor.name}
             </p>
           </div>
 
@@ -238,13 +216,13 @@ export default function BookAppointmentPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3">
                     <Avatar className="h-12 w-12">
-                      <AvatarImage src={doctor.user.profilePicture || "/placeholder.svg"} />
+                      <AvatarImage src={doctor.profilePicture || "/placeholder.svg"} />
                       <AvatarFallback>
-                        {doctor.user.name.split(" ").map(n => n[0]).join("")}
+                        {doctor.name.split(" ").map(n => n[0]).join("")}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h3 className="text-lg font-semibold">{doctor.user.name}</h3>
+                      <h3 className="text-lg font-semibold">{doctor.name}</h3>
                       <p className="text-sm text-blue-600 dark:text-blue-400">
                         {doctor.specialty}
                       </p>
@@ -256,7 +234,7 @@ export default function BookAppointmentPage() {
                     <MapPin className="h-4 w-4 text-gray-500" />
                     <span>{doctor.clinicLocation}</span>
                   </div>
-                  
+
                   <div className="flex items-center gap-2 text-sm">
                     <Clock className="h-4 w-4 text-gray-500" />
                     <span>{doctor.experience} experience</span>
@@ -311,7 +289,7 @@ export default function BookAppointmentPage() {
                   <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                     {/* Hidden field to register doctorId so it's included in form submission */}
                     <input type="hidden" {...register("doctorId")} />
-                    
+
                     <div className="grid md:grid-cols-2 gap-4">
                       {/* Date field - using register() */}
                       <div className="space-y-2">
@@ -358,7 +336,7 @@ export default function BookAppointmentPage() {
                       <Label htmlFor="appointmentType">Appointment Type</Label>
                       <Select
                         value={watch("appointmentType")}
-                        onValueChange={(value: "ONLINE" | "OFFLINE") => 
+                        onValueChange={(value: "ONLINE" | "OFFLINE") =>
                           setValue("appointmentType", value, { shouldValidate: true, shouldDirty: true })
                         }
                       >

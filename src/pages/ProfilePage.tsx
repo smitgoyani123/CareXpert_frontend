@@ -28,7 +28,7 @@ import { useAuthStore } from "@/store/authstore";
 import { motion } from "framer-motion";
 import { api } from "@/lib/api";
 import axios from "axios";
-import { toast } from "sonner";
+import { notify } from "@/lib/toast";
 
 /**
  * Zod Schema for Profile Form
@@ -132,17 +132,17 @@ export default function ProfilePage() {
         });
       }
 
-      toast.success("Profile updated successfully");
+      notify.success("Profile updated successfully");
       setIsEditing(false);
       setSelectedImage(null);
       setPreviewUrl(null);
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
-        toast.error(
+        notify.error(
           error.response.data?.message || "Failed to update profile"
         );
       } else {
-        toast.error("Failed to update profile");
+        notify.error("Failed to update profile");
       }
     } finally {
       setSaving(false);

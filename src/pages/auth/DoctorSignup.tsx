@@ -42,7 +42,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { api } from "@/lib/api";
 import axios from "axios";
-import { toast } from "sonner";
+import { notify } from "@/lib/toast";
 
 /**
  * Zod Schema for Doctor Signup Form
@@ -118,16 +118,16 @@ export default function DoctorSignup() {
       });
 
       if (res.data.success) {
-        toast.success("Doctor account created successfully!");
+        notify.success("Doctor account created successfully!");
         navigate("/dashboard/doctor");
       } else {
-        toast.error(res.data.message || "Signup failed");
+        notify.error(res.data.message || "Signup failed");
       }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response) {
-        toast.error(err.response.data?.message || "Something went wrong");
+        notify.error(err.response.data?.message || "Something went wrong");
       } else {
-        toast.error("Unknown error occurred.");
+        notify.error("Unknown error occurred.");
       }
       console.error(err);
     }

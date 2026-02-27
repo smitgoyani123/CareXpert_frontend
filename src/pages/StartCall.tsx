@@ -1,12 +1,7 @@
 import React, { useEffect, useState, lazy, Suspense } from "react";
-import { api } from "@/lib/api";
+import { videoCallAPI } from "@/lib/services";
 
 const VideoCall = lazy(() => import("../components/VideoCall"));
-
-interface MeetingResponse {
-  roomId: string;
-  token: string;
-}
 
 const StartCall: React.FC = () => {
   const [meetingId, setMeetingId] = useState<string>("");
@@ -15,7 +10,7 @@ const StartCall: React.FC = () => {
   useEffect(() => {
     const getRoom = async () => {
       try {
-        const res = await api.post<MeetingResponse>(`/api/chat/get-token`);
+        const res = await videoCallAPI.getMeetingToken();
         setMeetingId(res.data.roomId);
         setToken(res.data.token);
       } catch (err) {

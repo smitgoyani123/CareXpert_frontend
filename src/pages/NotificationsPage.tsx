@@ -4,8 +4,9 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Bell, Check, CheckCheck, Calendar, Stethoscope } from "lucide-react";
 import { api } from "@/lib/api";
-import { toast } from "sonner";
 import { relativeTime } from "@/lib/utils";
+import { notify } from "@/lib/toast";
+import axios from "axios";
 
 interface Notification {
   id: string;
@@ -21,10 +22,10 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingAsRead, setMarkingAsRead] = useState<string | null>(null);
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
 
   useEffect(() => {
-    fetchNotifications();
-  }, []);
+    const controller = new AbortController();
 
   const fetchNotifications = async () => {
     try {
@@ -36,13 +37,11 @@ export default function NotificationsPage() {
       if (response.data.success) {
         setNotifications(response.data.data.notifications);
       }
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-      toast.error("Failed to fetch notifications");
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    fetchNotifications();
+    return () => controller.abort(); // Cancel on unmount
+  }, []);
 
   const markAsRead = async (notificationId: string) => {
     setMarkingAsRead(notificationId);
@@ -60,16 +59,18 @@ export default function NotificationsPage() {
             : notif
         )
       );
-      toast.success("Notification marked as read");
+      notify.success("Notification marked as read");
     } catch (error) {
       console.error("Error marking notification as read:", error);
-      toast.error("Failed to mark notification as read");
+      notify.error("Failed to mark notification as read");
     } finally {
       setMarkingAsRead(null);
     }
   };
 
   const markAllAsRead = async () => {
+    if (isMarkingAll) return; // Guard against double-click
+    setIsMarkingAll(true);
     try {
       await api.put(
         `/user/notifications/mark-all-read`,
@@ -80,10 +81,12 @@ export default function NotificationsPage() {
       setNotifications(prev =>
         prev.map(notif => ({ ...notif, isRead: true }))
       );
-      toast.success("All notifications marked as read");
+      notify.success("All notifications marked as read");
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
-      toast.error("Failed to mark all notifications as read");
+      notify.error("Failed to mark all notifications as read");
+    } finally {
+      setIsMarkingAll(false);
     }
   };
 
@@ -140,8 +143,17 @@ export default function NotificationsPage() {
             </p>
           </div>
           {unreadCount > 0 && (
-            <Button onClick={markAllAsRead} variant="outline" className="flex items-center gap-2">
-              <CheckCheck className="h-4 w-4" />
+            <Button
+              onClick={markAllAsRead}
+              variant="outline"
+              className="flex items-center gap-2"
+              disabled={isMarkingAll}
+            >
+              {isMarkingAll ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              ) : (
+                <CheckCheck className="h-4 w-4" />
+              )}
               Mark All as Read
             </Button>
           )}

@@ -6,16 +6,37 @@ import {
   CardTitle,
   CardDescription,
 } from "../components/ui/card";
+import {useEffect,useRef,useState,lazy, Suspense}from "react";
 import { Heart, Users, Clock, Shield, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Navbar } from "../components/navbar";
 import { Footer } from "../components/footer";
-import { lazy, Suspense } from "react";
 import { SampleCredentials } from "../components/sample-credentials";
 
 const AIChatBox = lazy(() => import("../components/ai-chat-box").then(module => ({ default: module.AIChatBox })));
 
 export default function HomePage() {
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  useEffect(() => {
+  const observer = new IntersectionObserver(
+    ([entry], obs) => {
+      if (entry.isIntersecting) {
+        setIsVisible(true);
+        obs.disconnect();
+      }
+    },
+    { threshold: 0.2 }
+  );
+
+  if (sectionRef.current) {
+    observer.observe(sectionRef.current);
+  }
+
+  return () => {
+    observer.disconnect();
+  };
+}, []);
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <Navbar />
@@ -88,7 +109,12 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="container mx-auto px-4 py-16">
+      <section
+      ref={sectionRef}
+      className={`container mx-auto px-4 py-16 transition-all duration-700 ease-out ${
+     isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+     }`}
+    >
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
             Why Choose careXpert?

@@ -73,10 +73,12 @@ export const sendMessage = (message: DmMessageData) => {
 };
 
 export const onMessage = (callback: (msg: FormattedMessage) => void) => {
-  socket.on("message", (msg) => {
-    // console.log(msg);
-    callback(msg);
-  });
+  // Remove any existing registration of this exact callback before re-adding it.
+  // This prevents duplicate listeners when the component remounts (e.g. React StrictMode)
+  // and also ensures offMessage(callback) can correctly remove the listener, since the
+  // callback is now registered directly rather than wrapped in an anonymous function.
+  socket.off("message", callback);
+  socket.on("message", callback);
 };
 
 export const offMessage = (callback?: (msg: FormattedMessage) => void) => {
@@ -151,12 +153,12 @@ export const loadRoomChatHistory = async (
 };
 
 export const loadDmChatHistory = async (
-  roomId: string,
+  otherUserId: string,
   page: number = 1,
   limit: number = 50
 ) => {
   try {
-    const response = await api.get(`/chat/dm/${roomId}`, {
+    const response = await api.get(`/chat/one-on-one/${otherUserId}`, {
       params: { page, limit },
       withCredentials: true,
     });

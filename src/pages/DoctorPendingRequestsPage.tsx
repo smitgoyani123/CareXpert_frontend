@@ -32,8 +32,8 @@ import { useAuthStore } from "@/store/authstore";
 import { relativeTime } from "@/lib/utils";
 import { api } from "@/lib/api";
 import axios from "axios";
-import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { notify } from "@/lib/toast";
 
 type PendingRequest = {
   id: string;
@@ -89,9 +89,9 @@ export default function DoctorPendingRequestsPage() {
       }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response) {
-        toast.error(err.response.data?.message || "Failed to fetch pending requests");
+        notify.error(err.response.data?.message || "Failed to fetch pending requests");
       } else {
-        toast.error("Unknown error occurred");
+        notify.error("Unknown error occurred");
       }
     } finally {
       setIsLoading(false);
@@ -125,7 +125,7 @@ export default function DoctorPendingRequestsPage() {
       );
 
       if (res.data.success) {
-        toast.success(`Appointment request ${action}ed successfully`);
+        notify.success(`Appointment request ${action}ed successfully`);
         await fetchPendingRequests(); // Refresh the list
         setIsDialogOpen(false);
         setSelectedRequest(null);
@@ -135,9 +135,9 @@ export default function DoctorPendingRequestsPage() {
       }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response) {
-        toast.error(err.response.data?.message || "Failed to process request");
+        notify.error(err.response.data?.message || "Failed to process request");
       } else {
-        toast.error("Unknown error occurred");
+        notify.error("Unknown error occurred");
       }
     } finally {
       setIsProcessing(false);
