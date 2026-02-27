@@ -155,7 +155,7 @@ export default function LoginSignup() {
 
       if (response.data.success) {
         setUser(response.data.data);
-        toast.success("Login successful!");
+        notify.success("Login successful!");
 
         // Navigate based on role
         const role = response.data.data.role;

@@ -31,13 +31,21 @@ export default function NotificationsPage() {
     try {
       const response = await api.get(
         `/user/notifications`,
-        { withCredentials: true }
+        { withCredentials: true, signal: controller.signal }
       );
 
       if (response.data.success) {
         setNotifications(response.data.data.notifications);
       }
-    };
+    } catch (error) {
+      if (!axios.isCancel(error)) {
+        console.error("Error fetching notifications:", error);
+        notify.error("Failed to load notifications");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
     fetchNotifications();
     return () => controller.abort(); // Cancel on unmount
