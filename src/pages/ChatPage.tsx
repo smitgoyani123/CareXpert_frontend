@@ -611,12 +611,12 @@ export default function ChatPage() {
       }
     };
 
-    onMessage(handleIncomingMessage);
+    const unsubscribe = subscribe(handler);
 
     return () => {
-      offMessage();
+      unsubscribe();
     };
-  }, [selectedChat, user]);
+  }, [subscribe]);
 
   return (
     <div className="h-[calc(100%-1rem)] overflow-hidden flex flex-col mt-4">
