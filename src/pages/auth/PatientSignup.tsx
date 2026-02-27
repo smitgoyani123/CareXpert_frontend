@@ -94,7 +94,6 @@ export default function PatientSignup() {
           email: res.data.data.email,
           profilePicture: res.data.data.profilePicture,
           role: res.data.data.role,
-          refreshToken: res.data.data.refreshToken,
         });
 
         if (res.data.data.role === "PATIENT") {

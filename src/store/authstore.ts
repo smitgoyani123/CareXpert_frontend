@@ -10,7 +10,6 @@ interface User {
   email: string;
   profilePicture: string;
   role: string;
-  refreshToken: string;
 }
 
 interface AuthState {
@@ -39,21 +38,17 @@ export const useAuthStore = create<AuthState>()(
 
       handleSessionExpiry: (reason?: string) => {
         const currentUser = get().user;
-        // Prevent duplicate session expiry handling
         if (!currentUser) return;
 
-        // Clear state
         set({ user: null, sessionExpiredAt: Date.now() });
         disconnectSocket();
         localStorage.removeItem('auth-storage');
 
-        // Broadcast logout to other tabs
         try {
           const channel = new BroadcastChannel(LOGOUT_CHANNEL_NAME);
           channel.postMessage({ type: 'logout', reason: reason || 'session_expired' });
           channel.close();
         } catch {
-          // BroadcastChannel not supported — storage event fallback handles this
           localStorage.setItem('carexpert-logout-event', Date.now().toString());
           localStorage.removeItem('carexpert-logout-event');
         }
@@ -78,7 +73,6 @@ export const useAuthStore = create<AuthState>()(
               email: res.data.data.email,
               profilePicture: res.data.data.profilePicture,
               role: res.data.data.role,
-              refreshToken: res.data.data.refreshToken,
             };
             set({ user: userData, isLoading: false, sessionExpiredAt: null });
             return;
@@ -153,7 +147,20 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "auth-storage",
-      partialize: (state) => ({ user: state.user }),
+      // Persist only non-sensitive profile information. Do NOT persist tokens.
+      partialize: (state) => {
+        const u = state.user;
+        if (!u) return { user: null };
+        return {
+          user: {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            profilePicture: u.profilePicture,
+            role: u.role,
+          },
+        };
+      },
     },
   ),
 );

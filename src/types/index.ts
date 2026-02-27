@@ -7,7 +7,6 @@ export interface User {
   email: string;
   profilePicture?: string;
   role: UserRole;
-  refreshToken?: string;
 }
 
 export interface Doctor {
