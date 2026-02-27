@@ -23,10 +23,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { toast } from "sonner";
 import { api } from "@/lib/api";
 import axios from "axios";
 import { useAuthStore } from "@/store/authstore";
+import { notify } from "@/lib/toast";
 
 /**
  * Zod Schema for Patient Signup Form
@@ -86,7 +86,7 @@ export default function PatientSignup() {
       );
 
       if (res.data.success) {
-        toast.success("Account created successfully!");
+        notify.success("Account created successfully!");
 
         useAuthStore.getState().setUser({
           id: res.data.data.id,
@@ -94,7 +94,6 @@ export default function PatientSignup() {
           email: res.data.data.email,
           profilePicture: res.data.data.profilePicture,
           role: res.data.data.role,
-          refreshToken: res.data.data.refreshToken,
         });
 
         if (res.data.data.role === "PATIENT") {
@@ -103,13 +102,13 @@ export default function PatientSignup() {
           navigate("/dashboard/doctor");
         }
       } else {
-        toast.error(res.data.message || "Signup failed");
+        notify.error(res.data.message || "Signup failed");
       }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response) {
-        toast.error(err.response.data?.message || "Something went wrong");
+        notify.error(err.response.data?.message || "Something went wrong");
       } else {
-        toast.error("Unknown error occurred");
+        notify.error("Unknown error occurred");
       }
     }
   };

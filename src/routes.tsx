@@ -13,6 +13,8 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const AppointmentManagementPage = lazy(() => import("./pages/AppointmentManagementPage"));
 const DoctorAppointmentsPage = lazy(() => import("./pages/DoctorAppointmentsPage"));
 const DoctorAppointmentHistoryPage = lazy(() => import("./pages/DoctorAppointmentHistoryPage"));
+const DoctorPrescriptionsPage = lazy(() => import("./pages/DoctorPrescriptionsPage"));
+const DoctorReportsPage = lazy(() => import("./pages/DoctorReportsPage"));
 const PrescriptionsPage = lazy(() => import("./pages/PrescriptionsPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const DoctorPendingRequestsPage = lazy(() => import("./pages/DoctorPendingRequestsPage"));
@@ -40,7 +42,7 @@ const PageLoader = () => (
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((state) => state.user);
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/auth/login" replace />;
   }
   return <>{children}</>;
 }
@@ -66,6 +68,12 @@ export default function AppRoutes() {
         </Route>
         <Route path="/doctor/appointment-history" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
           <Route index element={<DoctorAppointmentHistoryPage />} />
+        </Route>
+        <Route path="/doctor/prescriptions" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+          <Route index element={<DoctorPrescriptionsPage />} />
+        </Route>
+        <Route path="/doctor/reports" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+          <Route index element={<DoctorReportsPage />} />
         </Route>
         <Route path="/prescriptions" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
           <Route index element={<PrescriptionsPage />} />

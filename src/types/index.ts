@@ -7,7 +7,6 @@ export interface User {
   email: string;
   profilePicture?: string;
   role: UserRole;
-  refreshToken?: string;
 }
 
 export interface Doctor {
@@ -36,4 +35,16 @@ export interface Appointment {
   prescriptionId?: string | null;
   patient?: User; // Depending on if you're fetching from Doctor or Patient side
   doctor?: Doctor;
+}
+
+export interface BlockedDate {
+  id: string;
+  doctorId: string;
+  date: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  reason?: string | null;
+  isFullDay: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }

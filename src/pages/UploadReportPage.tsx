@@ -11,8 +11,28 @@ import { Upload, FileText, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { api } from "@/lib/api";
 import axios from "axios";
-import { toast } from "sonner";
 import { Badge } from "../components/ui/badge";
+import { notify } from "@/lib/toast";
+
+interface AbnormalValue {
+  name: string;
+  value: string | number;
+  unit: string;
+  normal: string;
+  issue: string;
+}
+
+interface ReportAnalysisResult {
+  id?: string;
+  filename?: string;
+  status?: "IDLE" | "PROCESSING" | "COMPLETED" | "FAILED";
+  summary?: string;
+  abnormalValues?: AbnormalValue[];
+  possibleConditions?: (string | { condition: string })[];
+  recommendation?: string;
+  disclaimer?: string;
+  error?: string;
+}
 
 export default function UploadReportPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -21,7 +41,7 @@ export default function UploadReportPage() {
   const [status, setStatus] = useState<
     "IDLE" | "PROCESSING" | "COMPLETED" | "FAILED"
   >("IDLE");
-  const [result, setResult] = useState<any | null>(null);
+  const [result, setResult] = useState<ReportAnalysisResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const pollRef = useRef<number | null>(null);
@@ -42,7 +62,58 @@ export default function UploadReportPage() {
     }
   };
 
+  const startPolling = (id: string) => {
+    stopPolling();
+
+    let errorCount = 0;
+    const maxErrors = 3;
+
+    pollRef.current = window.setInterval(async () => {
+      try {
+        const res = await api.get(`/report/${id}`, {
+          withCredentials: true,
+        });
+
+        // Reset error count on success
+        errorCount = 0;
+
+        if (res.data?.success) {
+          const r = res.data.data;
+          if (r.status === "COMPLETED") {
+            setStatus("COMPLETED");
+            setResult(r);
+            stopPolling(); // ✅ Stop on success
+            setIsUploading(false);
+            notify.success("Report analyzed successfully");
+          } else if (r.status === "FAILED") {
+            setStatus("FAILED");
+            setErrorMessage(r.error || "Analysis failed");
+            stopPolling(); // ✅ Stop on failure
+            setIsUploading(false);
+            notify.error(r.error || "Report analysis failed");
+          } else {
+            setStatus("PROCESSING");
+          }
+        }
+      } catch (err) {
+        errorCount++;
+        console.error("Polling error:", err);
+
+        // ✅ Stop after multiple errors
+        if (errorCount >= maxErrors) {
+          stopPolling();
+          setStatus("FAILED");
+          setErrorMessage("Connection error - please try again");
+          setIsUploading(false); // ensure UI unlocks if polling finally dies
+          notify.error("Failed to check report status");
+        }
+      }
+    }, 2000);
+  };
+
+  // ✅ Comprehensive cleanup on mount/unmount
   useEffect(() => {
+    // Load saved state
     try {
       const saved = localStorage.getItem(LS_REPORT_STATE_KEY);
       if (saved) {
@@ -65,43 +136,24 @@ export default function UploadReportPage() {
           setStatus(parsedLast.status || "COMPLETED");
         }
       }
-    } catch {}
+    } catch { }
 
-    return () => stopPolling();
+    // ✅ Always cleanup on unmount
+    return () => {
+      stopPolling();
+      // Clear any pending state updates
+      setIsUploading(false);
+    };
   }, []);
 
-  const startPolling = (id: string) => {
-    stopPolling();
-    pollRef.current = window.setInterval(async () => {
-      try {
-        const res = await api.get(`/report/${id}`, {
-          withCredentials: true,
-        });
-        if (res.data?.success) {
-          const r = res.data.data;
-          if (r.status === "COMPLETED") {
-            setStatus("COMPLETED");
-            setResult(r);
-            stopPolling();
-            setIsUploading(false);
-            toast.success("Report analyzed successfully");
-          } else if (r.status === "FAILED") {
-            setStatus("FAILED");
-            setErrorMessage(r.error || "Analysis failed");
-            stopPolling();
-            setIsUploading(false);
-            toast.error(r.error || "Report analysis failed");
-          } else {
-            setStatus("PROCESSING");
-          }
-        }
-      } catch (err) {
-        // keep polling briefly; show toast once
-      }
-    }, 2000);
-  };
+  // ✅ Also cleanup when file changes
+  useEffect(() => {
+    if (file) {
+      stopPolling(); // Stop any existing polling when new file selected
+    }
+  }, [file]);
 
-const handleSubmit = async () => {
+  const handleSubmit = async () => {
     if (!file) return;
     setErrorMessage(null);
     setResult(null);
@@ -120,9 +172,7 @@ const handleSubmit = async () => {
       if (res.data?.success && res.data?.data?.reportId) {
         const id = res.data.data.reportId as string;
         startPolling(id);
-        toast.message("Report uploaded", {
-          description: "Analyzing in background...",
-        });
+        notify.info("Report uploaded. Analyzing in background...");
       } else {
         throw new Error(res.data?.message || "Upload failed");
       }
@@ -134,7 +184,7 @@ const handleSubmit = async () => {
           ? err.response?.data?.message || err.message
           : err instanceof Error ? err.message : "Upload failed";
       setErrorMessage(msg);
-      toast.error(msg);
+      notify.error(msg);
     }
   };
 

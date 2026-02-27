@@ -31,10 +31,10 @@ import {
 } from "../components/ui/select";
 import { Textarea } from "../components/ui/textarea";
 import { MapPin, Clock, Star, Video, User } from "lucide-react";
-import { toast } from "sonner";
 import { api } from "@/lib/api";
 import axios from "axios";
 import { useAuthStore } from "@/store/authstore";
+import { notify } from "@/lib/toast";
 
 /**
  * Zod Schema for Appointment Booking Form
@@ -132,12 +132,12 @@ export default function BookAppointmentPage() {
           if (foundDoctor && foundDoctor.id === doctorId) {
             setDoctor(foundDoctor);
           } else {
-            toast.error("Doctor not found");
+            notify.error("Doctor not found");
             navigate("/doctors");
           }
         }
       } catch (err: any) {
-        toast.error(err?.message || "Failed to fetch doctor details");
+        notify.error(err?.message || "Failed to fetch doctor details");
         navigate("/doctors");
       } finally {
         setLoading(false);
@@ -162,14 +162,14 @@ export default function BookAppointmentPage() {
       const res = await api.post(`/patient/book-direct-appointment`, data);
 
       if (res.data.success) {
-        toast.success("Appointment request sent successfully! You will be notified once the doctor responds.");
+        notify.success("Appointment request sent successfully! You will be notified once the doctor responds.");
         navigate("/dashboard/patient");
       }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response) {
-        toast.error(err.response.data?.message || "Failed to book appointment");
+        notify.error(err.response.data?.message || "Failed to book appointment");
       } else {
-        toast.error("An unexpected error occurred");
+        notify.error("An unexpected error occurred");
       }
     } finally {
       setBooking(false);

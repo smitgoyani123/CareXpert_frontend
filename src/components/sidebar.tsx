@@ -69,6 +69,8 @@ export const Sidebar = memo(function Sidebar({ isOpen, onToggle }: SidebarProps)
         { href: "/dashboard/doctor", label: "Home", icon: Home },
         { href: "/doctor/appointments", label: "Appointment Requests", icon: Calendar },
         { href: "/doctor/appointment-history", label: "Appointment History", icon: Clock },
+        { href: "/doctor/prescriptions", label: "Prescriptions", icon: Pill },
+        { href: "/doctor/reports", label: "Patient Reports", icon: FileText },
         { href: "/chat", label: "Chat", icon: MessageCircle },
         { href: "/notifications", label: "Notifications", icon: Bell, badge: unreadCount },
         { href: "/profile", label: "Profile", icon: User },

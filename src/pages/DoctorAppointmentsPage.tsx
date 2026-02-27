@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -20,8 +21,8 @@ import {
 import { useAuthStore } from "@/store/authstore";
 import { api } from "@/lib/api";
 import axios from "axios";
-import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { notify } from "@/lib/toast";
 import EmptyState from "@/components/EmptyState";
 import {
   Dialog,
@@ -68,6 +69,7 @@ type AppointmentApiResponse = {
 };
 
 export default function DoctorAppointmentsPage() {
+  const navigate = useNavigate();
   const [appointments, setAppointments] = useState<AppointmentRequest[]>([]);
   const [pendingRequests, setPendingRequests] = useState<AppointmentRequest[]>(
     []
@@ -85,6 +87,10 @@ export default function DoctorAppointmentsPage() {
     useState<string | null>(null);
   const [completeAfterPrescription, setCompleteAfterPrescription] =
     useState(false);
+
+  const apiBase = useMemo(() => {
+    return (api.defaults.baseURL || "/api").replace(/\/+$/, "");
+  }, []);
 
   const user = useAuthStore((state) => state.user);
   useEffect(() => {
@@ -119,11 +125,11 @@ export default function DoctorAppointmentsPage() {
     } catch (error) {
       console.error("Error fetching appointments:", error);
       if (axios.isAxiosError(error) && error.response) {
-        toast.error(
+        notify.error(
           error.response.data?.message || "Failed to fetch appointments"
         );
       } else {
-        toast.error("Failed to fetch appointments");
+        notify.error("Failed to fetch appointments");
       }
     } finally {
       setLoading(false);
@@ -140,17 +146,17 @@ export default function DoctorAppointmentsPage() {
       );
 
       if (response.data.success) {
-        toast.success("Appointment accepted successfully!");
+        notify.success("Appointment accepted successfully!");
         fetchAppointments();
       }
     } catch (error) {
       console.error("Error accepting appointment:", error);
       if (axios.isAxiosError(error) && error.response) {
-        toast.error(
+        notify.error(
           error.response.data?.message || "Failed to accept appointment"
         );
       } else {
-        toast.error("Failed to accept appointment");
+        notify.error("Failed to accept appointment");
       }
     } finally {
       setProcessing(false);
@@ -159,7 +165,7 @@ export default function DoctorAppointmentsPage() {
 
   const handleSubmitPrescription = async () => {
     if (!prescriptionForAppointmentId || !prescriptionText.trim()) {
-      toast.error("Please enter prescription");
+      notify.error("Please enter prescription");
       return;
     }
     try {
@@ -170,7 +176,7 @@ export default function DoctorAppointmentsPage() {
         { withCredentials: true }
       );
       if (res.data.success) {
-        toast.success("Prescription saved");
+        notify.success("Prescription saved");
         // If we initiated from "Mark Completed", mark the appointment as completed now
         if (completeAfterPrescription && prescriptionForAppointmentId) {
           try {
@@ -180,15 +186,15 @@ export default function DoctorAppointmentsPage() {
               { withCredentials: true }
             );
             if (completeRes.data.success) {
-              toast.success("Appointment marked as completed");
+              notify.success("Appointment marked as completed");
             }
           } catch (error) {
             if (axios.isAxiosError(error) && error.response) {
-              toast.error(
+              notify.error(
                 error.response.data?.message || "Failed to mark as completed"
               );
             } else {
-              toast.error("Failed to mark as completed");
+              notify.error("Failed to mark as completed");
             }
           }
         }
@@ -201,11 +207,11 @@ export default function DoctorAppointmentsPage() {
       }
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
-        toast.error(
+        notify.error(
           error.response.data?.message || "Failed to save prescription"
         );
       } else {
-        toast.error("Failed to save prescription");
+        notify.error("Failed to save prescription");
       }
     } finally {
       setProcessing(false);
@@ -237,7 +243,7 @@ export default function DoctorAppointmentsPage() {
 
   const handleRejectAppointment = async () => {
     if (!selectedAppointment || !rejectionReason.trim()) {
-      toast.error("Please provide a reason for rejection");
+      notify.error("Please provide a reason for rejection");
       return;
     }
 
@@ -253,7 +259,7 @@ export default function DoctorAppointmentsPage() {
       );
 
       if (response.data.success) {
-        toast.success("Appointment request rejected");
+        notify.success("Appointment request rejected");
         setRejectDialogOpen(false);
         setRejectionReason("");
         setSelectedAppointment(null);
@@ -262,11 +268,11 @@ export default function DoctorAppointmentsPage() {
     } catch (error) {
       console.error("Error rejecting appointment:", error);
       if (axios.isAxiosError(error) && error.response) {
-        toast.error(
+        notify.error(
           error.response.data?.message || "Failed to reject appointment"
         );
       } else {
-        toast.error("Failed to reject appointment");
+        notify.error("Failed to reject appointment");
       }
     } finally {
       setProcessing(false);
@@ -350,21 +356,19 @@ export default function DoctorAppointmentsPage() {
         <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg w-fit">
           <button
             onClick={() => setActiveTab("requests")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === "requests"
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === "requests"
                 ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-            }`}
+              }`}
           >
             Pending Requests ({pendingRequests.length})
           </button>
           <button
             onClick={() => setActiveTab("all")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === "all"
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === "all"
                 ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-            }`}
+              }`}
           >
             All Appointments ({appointments.length})
           </button>
@@ -669,7 +673,7 @@ export default function DoctorAppointmentsPage() {
                             variant="secondary"
                             onClick={() =>
                               window.open(
-                                `/patient/prescription-pdf/${appointment.prescriptionId}`,
+                                `${apiBase}/doctor/prescription-pdf/${appointment.prescriptionId}`,
                                 "_blank"
                               )
                             }
@@ -677,6 +681,14 @@ export default function DoctorAppointmentsPage() {
                             View Prescription
                           </Button>
                         )}
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            navigate(`/doctor/reports?patientId=${appointment.patient.id}`)
+                          }
+                        >
+                          View Reports
+                        </Button>
                         {canMarkCompleted(appointment) && (
                           <Button
                             className="bg-blue-600 hover:bg-blue-700 text-white"

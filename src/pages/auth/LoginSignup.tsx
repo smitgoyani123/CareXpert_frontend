@@ -20,11 +20,11 @@ import { Label } from "../../components/ui/label";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
-import { Heart, User, Stethoscope, MapPin, Eye, EyeOff } from "lucide-react";
+import { Heart, User, Stethoscope, MapPin, Eye, EyeOff, Phone } from "lucide-react";
 import { useAuthStore } from "../../store/authstore";
 import { api } from "@/lib/api";
 import axios from "axios";
-import { toast } from "sonner";
+import { notify } from "@/lib/toast";
 
 /**
  * Zod Schema for Login Form
@@ -46,8 +46,14 @@ const loginSchema = z.object({
 const baseSignupSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().min(1, "Email is required").email("Invalid email address"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits").regex(/^[0-9+\-\s()]*$/, "Invalid phone number"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Must contain at least one number")
+    .regex(/[^A-Za-z0-9]/, "Must contain at least one special character"),
   confirmPassword: z.string().min(1, "Please confirm your password"),
 });
 
@@ -77,9 +83,11 @@ type LoginFormData = z.infer<typeof loginSchema>;
 // Form type that includes all possible fields for react-hook-form
 // (We validate with Zod discriminated union on submit)
 type SignupFormFields = {
+  role: "PATIENT" | "DOCTOR" | "";
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
   password: string;
   confirmPassword: string;
   location: string;
@@ -92,14 +100,13 @@ export default function LoginSignup() {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<"PATIENT" | "DOCTOR" | null>(null);
 
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
 
   /**
    * Login Form - using react-hook-form with Zod resolver
-   * Benefits: 
+   * Benefits:
    * - No manual state management for form fields
    * - Automatic validation on submit and onChange (after first submit)
    * - Type-safe form data
@@ -115,13 +122,17 @@ export default function LoginSignup() {
   /**
    * Signup Form - using react-hook-form
    * Uses SignupFormFields type to include ALL possible fields
-   * Validation is done manually with Zod on submit (discriminated union)
+   * Validation is done automatically with Zod via resolver
    */
   const signupForm = useForm<SignupFormFields>({
+    resolver: zodResolver(signupSchema),
+    mode: "onChange",
     defaultValues: {
+      role: "",
       firstName: "",
       lastName: "",
       email: "",
+      phone: "",
       password: "",
       confirmPassword: "",
       location: "",
@@ -129,6 +140,8 @@ export default function LoginSignup() {
       clinicLocation: "",
     },
   });
+
+  const selectedRole = signupForm.watch("role");
 
   /**
    * Handle Login - simplified with react-hook-form
@@ -138,16 +151,12 @@ export default function LoginSignup() {
     setIsLoading(true);
 
     try {
-      const response = await api.post(
-        `/user/login`,
-        data
-      );
+      const response = await api.post(`/user/login`, data);
 
       if (response.data.success) {
         setUser(response.data.data);
-        toast.success("Login successful!");
-        
-        // Navigate based on role
+        notify.success("Login successful!");
+
         const role = response.data.data.role;
         if (role === "DOCTOR") {
           navigate("/dashboard/doctor");
@@ -157,11 +166,11 @@ export default function LoginSignup() {
           navigate("/admin");
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        toast.error(error.response?.data?.message || "Login failed");
+        notify.error(error.response?.data?.message || "Login failed");
       } else {
-        toast.error("Login failed");
+        notify.error("Login failed");
       }
     } finally {
       setIsLoading(false);
@@ -169,82 +178,46 @@ export default function LoginSignup() {
   };
 
   /**
-   * Handle Signup - with Zod validation
+   * Handle Signup - with Zod validation via react-hook-form resolver
    * Password matching and role-specific fields are validated by schema
    */
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Get form values - now properly typed with all fields
-    const formValues = signupForm.getValues();
-    
-    // Check role first
-    if (!selectedRole) {
-      toast.error("Please select a role");
-      return;
-    }
-
-    // Build complete data with role for validation
-    const completeData = {
-      firstName: formValues.firstName,
-      lastName: formValues.lastName,
-      email: formValues.email,
-      password: formValues.password,
-      confirmPassword: formValues.confirmPassword,
-      role: selectedRole,
-      ...(selectedRole === "PATIENT" && { location: formValues.location }),
-      ...(selectedRole === "DOCTOR" && { 
-        specialty: formValues.specialty,
-        clinicLocation: formValues.clinicLocation,
-      }),
-    };
-
-    // Validate with Zod schema
-    const validationResult = signupSchema.safeParse(completeData);
-    
-    if (!validationResult.success) {
-      // Show first validation error
-      const firstError = validationResult.error.errors[0];
-      toast.error(firstError.message);
+  const handleSignup = async (formValues: SignupFormFields) => {
+    if (!formValues.role) {
+      notify.error("Please select a role");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Build payload from form values (already validated)
       const payload = {
         firstName: formValues.firstName,
         lastName: formValues.lastName,
         email: formValues.email,
+        phone: formValues.phone,
         password: formValues.password,
-        role: selectedRole,
-        ...(selectedRole === "DOCTOR" && {
+        role: formValues.role,
+        ...(formValues.role === "DOCTOR" && {
           specialty: formValues.specialty,
           clinicLocation: formValues.clinicLocation,
         }),
-        ...(selectedRole === "PATIENT" && {
+        ...(formValues.role === "PATIENT" && {
           location: formValues.location,
         }),
       };
 
-      const response = await api.post(
-        `/user/signup`,
-        payload
-      );
+      const response = await api.post(`/user/signup`, payload);
 
       if (response.data.success) {
-        toast.success("Signup successful! Please login.");
+        notify.success("Signup successful! Please login.");
         setIsLogin(true);
-        // Reset form using react-hook-form's reset method
         signupForm.reset();
-        setSelectedRole(null);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        toast.error(error.response?.data?.message || "Signup failed");
+        notify.error(error.response?.data?.message || "Signup failed");
       } else {
-        toast.error("Signup failed");
+        notify.error("Signup failed");
       }
     } finally {
       setIsLoading(false);
@@ -255,7 +228,9 @@ export default function LoginSignup() {
    * Handle role selection and update form accordingly
    */
   const handleRoleSelect = (role: "PATIENT" | "DOCTOR") => {
-    setSelectedRole(role);
+    signupForm.setValue("role", role, { shouldValidate: true, shouldDirty: true });
+    // Clear role-specific errors when role changes
+    signupForm.clearErrors(["location", "specialty", "clinicLocation"]);
   };
 
   return (
@@ -293,14 +268,12 @@ export default function LoginSignup() {
                 <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-6">
                   <div>
                     <Label htmlFor="login-data">Email or Username</Label>
-                    {/* Using register() instead of value + onChange */}
                     <Input
                       id="login-data"
                       type="text"
                       {...loginForm.register("data")}
                       placeholder="Enter your email or username"
                     />
-                    {/* Display validation error from Zod schema */}
                     {loginForm.formState.errors.data && (
                       <p className="text-sm text-red-500 mt-1">
                         {loginForm.formState.errors.data.message}
@@ -311,7 +284,6 @@ export default function LoginSignup() {
                   <div>
                     <Label htmlFor="login-password">Password</Label>
                     <div className="relative">
-                      {/* Using register() instead of value + onChange */}
                       <Input
                         id="login-password"
                         type={showPassword ? "text" : "password"}
@@ -328,7 +300,6 @@ export default function LoginSignup() {
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
-                    {/* Display validation error from Zod schema */}
                     {loginForm.formState.errors.password && (
                       <p className="text-sm text-red-500 mt-1">
                         {loginForm.formState.errors.password.message}
@@ -342,10 +313,10 @@ export default function LoginSignup() {
                 </form>
               </TabsContent>
 
-              {/* Signup Tab - Using react-hook-form's register for all fields */}
+              {/* Signup Tab - Using react-hook-form's register and handleSubmit */}
               <TabsContent value="signup">
-                <form onSubmit={handleSignup} className="space-y-6">
-                  {/* Role Selection - Kept as state since it controls conditional rendering */}
+                <form onSubmit={signupForm.handleSubmit(handleSignup)} className="space-y-6">
+                  {/* Role Selection */}
                   <div>
                     <Label>I want to join as:</Label>
                     <div className="grid grid-cols-2 gap-4 mt-2">
@@ -368,9 +339,12 @@ export default function LoginSignup() {
                         <span>Doctor</span>
                       </Button>
                     </div>
+                    {signupForm.formState.errors.role && (
+                      <p className="text-sm text-red-500 mt-1">{signupForm.formState.errors.role.message}</p>
+                    )}
                   </div>
 
-                  {/* Basic Info - Using register() instead of value + onChange */}
+                  {/* Basic Info */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="firstName">First Name</Label>
@@ -379,6 +353,9 @@ export default function LoginSignup() {
                         {...signupForm.register("firstName")}
                         placeholder="John"
                       />
+                      {signupForm.formState.errors.firstName && (
+                        <p className="text-sm text-red-500 mt-1">{signupForm.formState.errors.firstName.message}</p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="lastName">Last Name</Label>
@@ -387,6 +364,9 @@ export default function LoginSignup() {
                         {...signupForm.register("lastName")}
                         placeholder="Doe"
                       />
+                      {signupForm.formState.errors.lastName && (
+                        <p className="text-sm text-red-500 mt-1">{signupForm.formState.errors.lastName.message}</p>
+                      )}
                     </div>
                   </div>
 
@@ -398,14 +378,33 @@ export default function LoginSignup() {
                       {...signupForm.register("email")}
                       placeholder="john@example.com"
                     />
+                    {signupForm.formState.errors.email && (
+                      <p className="text-sm text-red-500 mt-1">{signupForm.formState.errors.email.message}</p>
+                    )}
                   </div>
 
-                  {/* Doctor-specific fields - using watch() + setValue() for Select integration */}
+                  <div>
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="phone"
+                        type="tel"
+                        {...signupForm.register("phone")}
+                        placeholder="+1 (555) 000-0000"
+                        className="pl-10"
+                      />
+                    </div>
+                    {signupForm.formState.errors.phone && (
+                      <p className="text-sm text-red-500 mt-1">{signupForm.formState.errors.phone.message}</p>
+                    )}
+                  </div>
+
+                  {/* Doctor-specific fields */}
                   {selectedRole === "DOCTOR" && (
                     <>
                       <div>
                         <Label htmlFor="specialty">Specialty</Label>
-                        {/* Select requires special handling with react-hook-form */}
                         <Select
                           value={signupForm.watch("specialty") || ""}
                           onValueChange={(value) => signupForm.setValue("specialty", value, { shouldValidate: true, shouldDirty: true })}
@@ -424,6 +423,9 @@ export default function LoginSignup() {
                             <SelectItem value="Other">Other</SelectItem>
                           </SelectContent>
                         </Select>
+                        {signupForm.formState.errors.specialty && (
+                          <p className="text-sm text-red-500 mt-1">{signupForm.formState.errors.specialty.message}</p>
+                        )}
                       </div>
 
                       <div>
@@ -437,6 +439,9 @@ export default function LoginSignup() {
                             className="pl-10"
                           />
                         </div>
+                        {signupForm.formState.errors.clinicLocation && (
+                          <p className="text-sm text-red-500 mt-1">{signupForm.formState.errors.clinicLocation.message}</p>
+                        )}
                       </div>
                     </>
                   )}
@@ -454,10 +459,13 @@ export default function LoginSignup() {
                           className="pl-10"
                         />
                       </div>
+                      {signupForm.formState.errors.location && (
+                        <p className="text-sm text-red-500 mt-1">{signupForm.formState.errors.location.message}</p>
+                      )}
                     </div>
                   )}
 
-                  {/* Password fields - Using register() */}
+                  {/* Password fields */}
                   <div>
                     <Label htmlFor="password">Password</Label>
                     <div className="relative">
@@ -477,6 +485,9 @@ export default function LoginSignup() {
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
+                    {signupForm.formState.errors.password && (
+                      <p className="text-sm text-red-500 mt-1">{signupForm.formState.errors.password.message}</p>
+                    )}
                   </div>
 
                   <div>
@@ -487,9 +498,12 @@ export default function LoginSignup() {
                       {...signupForm.register("confirmPassword")}
                       placeholder="Confirm your password"
                     />
+                    {signupForm.formState.errors.confirmPassword && (
+                      <p className="text-sm text-red-500 mt-1">{signupForm.formState.errors.confirmPassword.message}</p>
+                    )}
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={isLoading || !selectedRole}>
+                  <Button type="submit" className="w-full" disabled={isLoading || !selectedRole || !signupForm.formState.isValid}>
                     {isLoading ? "Creating account..." : "Create Account"}
                   </Button>
                 </form>

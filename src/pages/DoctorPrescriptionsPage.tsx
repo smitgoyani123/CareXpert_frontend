@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Pill, Calendar, Download, Mail, User } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -10,45 +12,40 @@ import {
 } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
-import {
-  Pill,
-  Calendar,
-  Download,
-  FileText,
-  User,
-  MapPin,
-} from "lucide-react";
 import { useAuthStore } from "@/store/authstore";
-import { relativeTime } from "@/lib/utils";
 import { api } from "@/lib/api";
+import { relativeTime } from "@/lib/utils";
+import { toast } from "sonner";
 import axios from "axios";
-import { motion } from "framer-motion";
 import EmptyState from "@/components/EmptyState";
-import { notify } from "@/lib/toast";
 
-type Prescription = {
+type DoctorPrescription = {
   id: string;
   date: string;
   prescriptionText: string;
-  doctorName: string;
-  speciality: string;
-  clinicLocation: string;
-}
+  patientName: string;
+  patientEmail: string;
+};
 
 type PrescriptionApiResponse = {
   statusCode: number;
   message: string;
   success: boolean;
-  data: Prescription[];
-}
+  data: DoctorPrescription[];
+};
 
-export default function PrescriptionsPage() {
+export default function DoctorPrescriptionsPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [prescriptions, setPrescriptions] = useState<DoctorPrescription[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const apiBase = useMemo(() => {
+    return (api.defaults.baseURL || "/api").replace(/\/+$/, "");
+  }, []);
+
   useEffect(() => {
-    if (!user || user.role !== "PATIENT") {
+    if (!user || user.role !== "DOCTOR") {
       navigate("/auth/login");
     }
   }, [user, navigate]);
@@ -57,22 +54,32 @@ export default function PrescriptionsPage() {
     async function fetchPrescriptions() {
       try {
         setIsLoading(true);
-        const res = await api.get<PrescriptionApiResponse>(`/patient/view-Prescriptions`, { withCredentials: true });
+        const res = await api.get<PrescriptionApiResponse>(
+          "/doctor/prescriptions",
+          { withCredentials: true }
+        );
         if (res.data.success) {
           setPrescriptions(res.data.data);
         }
       } catch (err) {
         if (axios.isAxiosError(err) && err.response) {
-          notify.error(err.response.data?.message || "Something went wrong");
+          toast.error(err.response.data?.message || "Failed to load prescriptions");
         } else {
-          notify.error("Unknown error occurred");
+          toast.error("Failed to load prescriptions");
         }
       } finally {
         setIsLoading(false);
       }
     }
-    fetchPrescriptions();
-  }, []);
+
+    if (user?.role === "DOCTOR") {
+      fetchPrescriptions();
+    }
+  }, [user]);
+
+  const openPrescriptionPdf = (id: string) => {
+    window.open(`${apiBase}/doctor/prescription-pdf/${id}`, "_blank");
+  };
 
   if (isLoading) {
     return (
@@ -86,7 +93,6 @@ export default function PrescriptionsPage() {
 
   return (
     <div className="p-6 md:p-8">
-      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -95,22 +101,19 @@ export default function PrescriptionsPage() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-              My Prescriptions
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              Prescriptions
             </h1>
             <p className="text-gray-600 dark:text-gray-300 text-lg">
-              View and download your medical prescriptions
+              View and download prescriptions you have issued
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-sm">
-              {prescriptions.length} Prescriptions
-            </Badge>
-          </div>
+          <Badge variant="secondary" className="text-sm">
+            {prescriptions.length} Prescriptions
+          </Badge>
         </div>
       </motion.div>
 
-      {/* Prescriptions List */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -123,7 +126,7 @@ export default function PrescriptionsPage() {
                 key={prescription.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
               >
                 <Card className="hover:shadow-lg transition-shadow">
                   <CardHeader>
@@ -133,29 +136,25 @@ export default function PrescriptionsPage() {
                           <Pill className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">Prescription #{prescription.id.slice(-8)}</CardTitle>
+                          <CardTitle className="text-lg">
+                            Prescription #{prescription.id.slice(-8)}
+                          </CardTitle>
                           <CardDescription>
-                            Prescribed by Dr. {prescription.doctorName}
+                            For {prescription.patientName}
                           </CardDescription>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {prescription.speciality}
-                        </Badge>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => window.open(`/prescription-pdf/${prescription.id}`, "_blank")}
-                        >
-                          <Download className="h-4 w-4 mr-1" />
-                          Download PDF
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openPrescriptionPdf(prescription.id)}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Download PDF
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Doctor Information */}
                     <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <Avatar className="w-10 h-10">
                         <AvatarFallback>
@@ -164,30 +163,22 @@ export default function PrescriptionsPage() {
                       </Avatar>
                       <div className="flex-1">
                         <p className="font-medium text-gray-900 dark:text-white">
-                          Dr. {prescription.doctorName}
+                          {prescription.patientName}
                         </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          {prescription.speciality}
-                        </p>
-                        <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                          <MapPin className="h-3 w-3" />
-                          {prescription.clinicLocation}
+                        <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300">
+                          <Mail className="h-3 w-3" />
+                          {prescription.patientEmail}
                         </div>
                       </div>
                     </div>
 
-                    {/* Prescription Details */}
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                        <Calendar className="h-4 w-4" />
-                        <span>Prescribed: {relativeTime(prescription.date)}</span>
-                      </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                      <Calendar className="h-4 w-4" />
+                      <span>Issued {relativeTime(prescription.date)}</span>
                     </div>
 
-                    {/* Prescription Instructions */}
                     <div className="border-t pt-4">
-                      <h4 className="font-medium text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
+                      <h4 className="font-medium text-gray-900 dark:text-white mb-2">
                         Prescription Instructions
                       </h4>
                       <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -203,11 +194,11 @@ export default function PrescriptionsPage() {
           </div>
         ) : (
           <EmptyState
-            title="No Prescriptions Found"
-            description="You don't have any prescriptions yet. Prescriptions will appear here once created by your doctor after an appointment."
+            title="No Prescriptions"
+            description="Prescriptions you issue will appear here after completing appointments."
             icon={<Pill className="h-8 w-8" />}
-            ctaLabel="Book an Appointment"
-            onCtaClick={() => navigate("/doctors")}
+            ctaLabel="View Appointments"
+            onCtaClick={() => navigate("/doctor/appointments")}
           />
         )}
       </motion.div>

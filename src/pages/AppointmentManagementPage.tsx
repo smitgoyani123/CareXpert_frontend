@@ -20,8 +20,8 @@ import {
 import { useAuthStore } from "@/store/authstore";
 import { api } from "@/lib/api";
 import axios from "axios";
-import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { notify } from "@/lib/toast";
 
 type Appointment = {
   id: string;
@@ -101,9 +101,9 @@ export default function AppointmentManagementPage() {
         }
       } catch (err) {
         if (axios.isAxiosError(err) && err.response) {
-          toast.error(err.response.data.message);
+          notify.error(err.response.data.message);
         } else {
-          toast.error("Unknown error occurred..");
+          notify.error("Unknown error occurred..");
         }
       } finally {
         setIsLoading(false);
